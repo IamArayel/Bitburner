@@ -1,0 +1,9 @@
+{
+  "allowedFiletypes": [".js", ".script", ".txt"],
+  "allowDeletingFiles": false,
+  "port": 12525,
+  "scriptsFolder": ".",
+  "exclude": [".vscode", ".idea", ".github", "node_modules"],
+  "pushAllOnConnection": true,
+  "quiet": false
+}
