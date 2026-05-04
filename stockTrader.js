@@ -18,9 +18,12 @@ export async function main(ns) {
         typeof ns.stock.shortStock === "function" &&
         typeof ns.stock.sellShort  === "function";
 
+    ns.ui.resizeTail(480, 420);
+
     let totalPnl = 0;
     ns.atExit(() => {
         ns.tprint(`[STOCK] PnL total réalisé : $${ns.formatNumber(totalPnl, 2)}`);
+        clearOverview();
     });
 
     while (true) {
@@ -50,7 +53,11 @@ export async function main(ns) {
         }
 
         totalPnl += loopPnl;
-        ns.print(`[PNL] boucle: $${ns.formatNumber(loopPnl, 2)} | total: $${ns.formatNumber(totalPnl, 2)}`);
+
+        const unrealized = calcUnrealized(symbols, data);
+        printDashboard(ns, symbols, data, totalPnl, unrealized, loopPnl);
+        updateOverview(ns, totalPnl, unrealized);
+
         await ns.sleep(SLEEP_TIME);
     }
 }
@@ -158,4 +165,87 @@ function openBestShort(ns, symbols, data, cash, commission, maxForecast, cashToK
     if (execPrice > 0) {
         ns.print(`OPEN SHORT ${bestSym} | qté=${qty} | prix≈$${ns.formatNumber(execPrice, 2)}`);
     }
+}
+
+// ─── Affichage ────────────────────────────────────────────────────────────────
+
+function calcUnrealized(symbols, data) {
+    let total = 0;
+    for (const sym of symbols) {
+        const [longShares, longAvg, shortShares, shortAvg] = data[sym].pos;
+        if (longShares  > 0) total += (data[sym].bid - longAvg)  * longShares;
+        if (shortShares > 0) total += (shortAvg - data[sym].ask) * shortShares;
+    }
+    return total;
+}
+
+function fmt(ns, n) {
+    const s = ns.formatNumber(n, 2);
+    return (n >= 0 ? "+" : "") + "$" + s;
+}
+
+function printDashboard(ns, symbols, data, realized, unrealized, loopPnl) {
+    ns.clearLog();
+    const total = realized + unrealized;
+    const sep   = "─".repeat(52);
+    const time  = new Date().toLocaleTimeString();
+
+    ns.print(`${sep}`);
+    ns.print(`  STOCK TRADER                         ${time}`);
+    ns.print(`${sep}`);
+    ns.print(`  PnL réalisé  ${fmt(ns, realized).padStart(14)}  (boucle: ${fmt(ns, loopPnl)})`);
+    ns.print(`  PnL latent   ${fmt(ns, unrealized).padStart(14)}`);
+    ns.print(`  PnL total    ${fmt(ns, total).padStart(14)}`);
+
+    let hasPos = false;
+    for (const sym of symbols) {
+        const { pos, bid, ask, forecast } = data[sym];
+        const [lShares, lAvg, sShares, sAvg] = pos;
+
+        if (lShares > 0) {
+            if (!hasPos) { ns.print(`${sep}`); ns.print(`  POSITIONS`); }
+            hasPos = true;
+            const pnl = (bid - lAvg) * lShares;
+            const pct = ((bid / lAvg - 1) * 100).toFixed(1);
+            ns.print(`  LONG  ${sym.padEnd(5)} f=${forecast.toFixed(3)}  ${fmt(ns, pnl).padStart(12)}  (${pct}%)`);
+        }
+        if (sShares > 0) {
+            if (!hasPos) { ns.print(`${sep}`); ns.print(`  POSITIONS`); }
+            hasPos = true;
+            const pnl = (sAvg - ask) * sShares;
+            const pct = ((sAvg / ask - 1) * 100).toFixed(1);
+            ns.print(`  SHORT ${sym.padEnd(5)} f=${forecast.toFixed(3)}  ${fmt(ns, pnl).padStart(12)}  (${pct}%)`);
+        }
+    }
+    if (!hasPos) { ns.print(`${sep}`); ns.print(`  Aucune position ouverte.`); }
+    ns.print(`${sep}`);
+
+    ns.ui.setTailTitle(`Stock Trader | Total: ${fmt(ns, total)}`);
+}
+
+function updateOverview(ns, realized, unrealized) {
+    try {
+        const doc   = eval("document");
+        const hook0 = doc.getElementById("overview-extra-hook-0");
+        const hook1 = doc.getElementById("overview-extra-hook-1");
+        if (!hook0 || !hook1) return;
+        const total = realized + unrealized;
+        const color = total >= 0 ? "#4caf50" : "#f44336";
+        hook0.innerHTML = "Stock réalisé<br>Stock latent<br>Stock total";
+        hook1.innerHTML = [
+            `$${ns.formatNumber(realized, 2)}`,
+            `$${ns.formatNumber(unrealized, 2)}`,
+            `<strong style="color:${color}">$${ns.formatNumber(total, 2)}</strong>`,
+        ].join("<br>");
+    } catch (_) {}
+}
+
+function clearOverview() {
+    try {
+        const doc = eval("document");
+        const h0  = doc.getElementById("overview-extra-hook-0");
+        const h1  = doc.getElementById("overview-extra-hook-1");
+        if (h0) h0.innerHTML = "";
+        if (h1) h1.innerHTML = "";
+    } catch (_) {}
 }

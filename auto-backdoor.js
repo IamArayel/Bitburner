@@ -4,13 +4,8 @@ export async function main(ns) {
     ns.disableLog("ALL");
     ns.tail(); 
 
-    const programs = [
-        { name: "BruteSSH.exe", price: 500e3 },
-        { name: "FTPCrack.exe", price: 1.5e6 },
-        { name: "relaySMTP.exe", price: 5e6 },
-        { name: "HTTPWorm.exe", price: 30e6 },
-        { name: "SQLInject.exe", price: 250e6 }
-    ];
+    // purchaseProgram retourne false si déjà possédé ou fonds insuffisants → pas besoin de prix ni de pré-check
+    const programs = ["BruteSSH.exe", "FTPCrack.exe", "relaySMTP.exe", "HTTPWorm.exe", "SQLInject.exe"];
 
     /** @type {Record<string, string>} */
     const parent = {};
@@ -21,12 +16,8 @@ export async function main(ns) {
 
     // --- PHASE 1 : ACHAT DES PROGRAMMES ---
     for (const prog of programs) {
-        if (!ns.fileExists(prog.name, "home")) {
-            if (ns.getServerMoneyAvailable("home") >= prog.price) {
-                if (ns.singularity.purchaseProgram(prog.name)) {
-                    ns.tprint(`🛒 Acheté : ${prog.name}`);
-                }
-            }
+        if (!ns.fileExists(prog, "home") && ns.singularity.purchaseProgram(prog)) {
+            ns.tprint(`🛒 Acheté : ${prog}`);
         }
     }
 
@@ -47,22 +38,20 @@ export async function main(ns) {
             if (serverInfo.purchasedByPlayer) continue;
 
             // Tentative de Root
-            const rooted = await tryRoot(ns, host);
+            const rooted = tryRoot(ns, host);
 
             // Tentative de Backdoor
-            if (rooted) {
-                if (!serverInfo.backdoorInstalled && ns.getHackingLevel() >= serverInfo.requiredHackingSkill) {
-                    ns.print(`Cible : ${host}. Connexion...`);
-                    
-                    const path = buildPath(parent, host);
-                    for (const step of path) {
-                        ns.singularity.connect(step);
-                    }
+            if (rooted && !serverInfo.backdoorInstalled && ns.getHackingLevel() >= serverInfo.requiredHackingSkill) {
+                ns.print(`Cible : ${host}. Connexion...`);
 
-                    await ns.singularity.installBackdoor();
-                    ns.singularity.connect("home");
-                    ns.tprint(`✅ Backdoor installé : ${host}`);
+                const path = buildPath(parent, host);
+                for (const step of path) {
+                    ns.singularity.connect(step);
                 }
+
+                await ns.singularity.installBackdoor();
+                ns.singularity.connect("home");
+                ns.tprint(`✅ Backdoor installé : ${host}`);
             }
         }
     }
@@ -72,7 +61,7 @@ export async function main(ns) {
 /**
  * Tente d'ouvrir les ports avec ce qu'on a en stock
  */
-async function tryRoot(ns, host) {
+function tryRoot(ns, host) {
     if (ns.hasRootAccess(host)) return true;
 
     let portsOpened = 0;
