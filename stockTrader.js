@@ -1,276 +1,161 @@
 /** @param {NS} ns **/
 export async function main(ns) {
     ns.tail();
-    try { ns.setAutoSchedule(false); } catch (_) {}
 
-    // ===== Paramètres généraux =====
-    const COMMISSION = 100_000;           // commission par ordre (aller)
-    //const KEEP_CASH = 30_000_000_000;  // garder "juste" $30b sur le compte
-    //const KEEP_CASH = 100_000_000;         // garder $100m sur le compte
-    const KEEP_CASH = 100_000;         // garder $100k sur le compte
-    const SLEEP_TIME = 6000;              // tick bourse ~6s
-
-    // ===== Paramètres LONG =====
-    const LONG_BUY_FORECAST  = 0.60;      // on achète si forecast >= 0.60
-    const LONG_SELL_FORECAST = 0.55;      // on vend si forecast < 0.55
-
-    // ===== Paramètres SHORT =====
-    const SHORT_OPEN_FORECAST  = 0.40;    // on ouvre un short si forecast <= 0.40
-    const SHORT_CLOSE_FORECAST = 0.45;    // on ferme le short si forecast > 0.45
-    const SHORT_MAX_OF_MAXSHARES = 0.02;  // ne pas short plus de 2% du maxShares
-    const SHORT_MAX_PORTFOLIO_RATIO = 0.10; // max 10% du cash dispo dans un short
-    const SHORT_MAX_LOSS_RATIO = 0.05;    // si le short perd >5% du notionnel -> on ferme
+    const COMMISSION                 = 100_000;
+    const KEEP_CASH                  = 100_000;
+    const SLEEP_TIME                 = 6000;
+    const LONG_BUY_FORECAST          = 0.60;
+    const LONG_SELL_FORECAST         = 0.55;
+    const SHORT_OPEN_FORECAST        = 0.40;
+    const SHORT_CLOSE_FORECAST       = 0.45;
+    const SHORT_MAX_OF_MAXSHARES     = 0.02;
+    const SHORT_MAX_PORTFOLIO_RATIO  = 0.10;
+    const SHORT_MAX_LOSS_RATIO       = 0.05;
 
     const symbols = ns.stock.getSymbols();
     const canShort =
         typeof ns.stock.shortStock === "function" &&
-        typeof ns.stock.sellShort === "function";
+        typeof ns.stock.sellShort  === "function";
 
     let totalPnl = 0;
-
-    // récapitulatif à l'arrêt
     ns.atExit(() => {
         ns.tprint(`[STOCK] PnL total réalisé : $${ns.formatNumber(totalPnl, 2)}`);
     });
 
     while (true) {
-        let loopPnl = 0;
-
-        // 1) fermer ce qui n'est plus bon
-        loopPnl += sellBadLongs(ns, symbols, COMMISSION, LONG_SELL_FORECAST);
-        if (canShort) {
-            loopPnl += sellBadShorts(
-                ns,
-                symbols,
-                COMMISSION,
-                SHORT_CLOSE_FORECAST,
-                SHORT_MAX_LOSS_RATIO
-            );
+        // Pré-fetch unique par tick : évite de rappeler les mêmes getters
+        // dans chaque sous-fonction (~467 → ~200 appels NS par boucle).
+        const cash = ns.getServerMoneyAvailable("home");
+        const data = {};
+        for (const sym of symbols) {
+            data[sym] = {
+                pos:       ns.stock.getPosition(sym),
+                forecast:  ns.stock.getForecast(sym),
+                vol:       ns.stock.getVolatility(sym),
+                maxShares: ns.stock.getMaxShares(sym),
+                ask:       ns.stock.getAskPrice(sym),
+                bid:       ns.stock.getBidPrice(sym),
+            };
         }
 
-        // 2) ouvrir / renforcer
-        await buyBestLong(ns, symbols, COMMISSION, LONG_BUY_FORECAST, KEEP_CASH);
+        let loopPnl = 0;
+        loopPnl += sellBadLongs(ns, symbols, data, COMMISSION, LONG_SELL_FORECAST);
         if (canShort) {
-            await openBestShort(
-                ns,
-                symbols,
-                COMMISSION,
-                SHORT_OPEN_FORECAST,
-                KEEP_CASH,
-                SHORT_MAX_OF_MAXSHARES,
-                SHORT_MAX_PORTFOLIO_RATIO
-            );
+            loopPnl += sellBadShorts(ns, symbols, data, COMMISSION, SHORT_CLOSE_FORECAST, SHORT_MAX_LOSS_RATIO);
+        }
+        buyBestLong(ns, symbols, data, cash, COMMISSION, LONG_BUY_FORECAST, KEEP_CASH);
+        if (canShort) {
+            openBestShort(ns, symbols, data, cash, COMMISSION, SHORT_OPEN_FORECAST, KEEP_CASH, SHORT_MAX_OF_MAXSHARES, SHORT_MAX_PORTFOLIO_RATIO);
         }
 
         totalPnl += loopPnl;
-        ns.print(
-            `[PNL] boucle: $${ns.formatNumber(loopPnl, 2)} | total: $${ns.formatNumber(totalPnl, 2)}`
-        );
-
+        ns.print(`[PNL] boucle: $${ns.formatNumber(loopPnl, 2)} | total: $${ns.formatNumber(totalPnl, 2)}`);
         await ns.sleep(SLEEP_TIME);
     }
 }
 
-/**
- * Ferme les positions LONG dont le forecast est passé sous le seuil.
- * Retourne le PnL réalisé.
- */
-function sellBadLongs(ns, symbols, commission, sellForecast) {
+function sellBadLongs(ns, symbols, data, commission, sellForecast) {
     let pnl = 0;
-
     for (const sym of symbols) {
-        const [longShares, longAvg] = ns.stock.getPosition(sym);
+        const { pos, forecast, bid } = data[sym];
+        const [longShares, longAvg] = pos;
         if (longShares <= 0) continue;
-
-        const forecast = ns.stock.getForecast(sym);
         if (forecast >= sellForecast) continue;
 
-        // on regarde si ça vaut le coup
-        const bid = ns.stock.getBidPrice(sym);
-        const gross = bid * longShares;
-        const cost = longAvg * longShares;
-        const minProfit = 2 * commission;
-        const potentialProfit = gross - cost;
+        const cost          = longAvg * longShares;
+        const potentialProfit = bid * longShares - cost;
+        const minProfit     = 2 * commission;
 
         if (potentialProfit > minProfit) {
             const execPrice = ns.stock.sellStock(sym, longShares);
             if (execPrice > 0) {
-                const realGross = execPrice * longShares;
-                const realized = realGross - cost - minProfit;
+                const realized = execPrice * longShares - cost - minProfit;
                 pnl += realized;
-
-                const pct = (realized / cost) * 100;
                 ns.print(
-                    `SELL LONG ${sym} | qté=${longShares} | PnL=$${ns.formatNumber(
-                        realized,
-                        2
-                    )} (${pct.toFixed(2)}%)`
+                    `SELL LONG ${sym} | qté=${longShares} | PnL=$${ns.formatNumber(realized, 2)} (${((realized / cost) * 100).toFixed(2)}%)`
                 );
             }
         } else {
-            ns.print(
-                `HOLD LONG ${sym} | forecast=${forecast.toFixed(
-                    3
-                )} mais profit insuffisant pour couvrir la commission`
-            );
+            ns.print(`HOLD LONG ${sym} | forecast=${forecast.toFixed(3)} profit insuffisant pour couvrir la commission`);
         }
     }
-
     return pnl;
 }
 
-/**
- * Ferme les positions SHORT soit parce que le forecast remonte,
- * soit parce qu'on dépasse la perte max autorisée.
- * Retourne le PnL réalisé.
- */
-function sellBadShorts(ns, symbols, commission, closeForecast, maxLossRatio) {
+function sellBadShorts(ns, symbols, data, commission, closeForecast, maxLossRatio) {
     let pnl = 0;
-
     for (const sym of symbols) {
-        const pos = ns.stock.getPosition(sym);
-        const shortShares = pos[2];
-        const shortAvgPrice = pos[3];
+        const { pos, forecast, ask } = data[sym];
+        const shortShares    = pos[2];
+        const shortAvgPrice  = pos[3];
         if (shortShares <= 0) continue;
 
-        const forecast = ns.stock.getForecast(sym);
-        const ask = ns.stock.getAskPrice(sym); // prix pour racheter le short
+        const unrealized = (shortAvgPrice - ask) * shortShares;
+        const notional   = shortAvgPrice * shortShares;
+        const lossRatio  = unrealized < 0 ? Math.abs(unrealized) / notional : 0;
 
-        // perte latente actuelle
-        // si le prix actuel (ask) > prix d'ouverture, on perd
-        const unrealized = (shortAvgPrice - ask) * shortShares; // peut être négatif
-        const notional = shortAvgPrice * shortShares;
-        const lossRatio = unrealized < 0 ? Math.abs(unrealized) / notional : 0;
-
-        const shouldCloseByForecast = forecast > closeForecast;
-        const shouldCloseByLoss = lossRatio > maxLossRatio;
-
-        if (shouldCloseByForecast || shouldCloseByLoss) {
+        if (forecast > closeForecast || lossRatio > maxLossRatio) {
             const execPrice = ns.stock.sellShort(sym, shortShares);
             if (execPrice > 0) {
-                // PnL short = (prix_open - prix_close) * qté - 2 commissions
-                const gross = (shortAvgPrice - execPrice) * shortShares;
-                const realized = gross - 2 * commission;
+                const realized = (shortAvgPrice - execPrice) * shortShares - 2 * commission;
                 pnl += realized;
-
-                const pct = (realized / notional) * 100;
                 ns.print(
-                    `CLOSE SHORT ${sym} | qté=${shortShares} | PnL=$${ns.formatNumber(
-                        realized,
-                        2
-                    )} (${pct.toFixed(2)}%)`
+                    `CLOSE SHORT ${sym} | qté=${shortShares} | PnL=$${ns.formatNumber(realized, 2)} (${((realized / notional) * 100).toFixed(2)}%)`
                 );
             }
         }
     }
-
     return pnl;
 }
 
-/**
- * Ouvre/renforce le meilleur LONG (forecast haut + vol).
- */
-async function buyBestLong(ns, symbols, commission, minForecast, cashToKeep) {
-    const cash = ns.getServerMoneyAvailable("home");
+function buyBestLong(ns, symbols, data, cash, commission, minForecast, cashToKeep) {
     const investable = cash - cashToKeep;
     if (investable <= commission) return;
 
-    let bestSym = null;
-    let bestScore = -Infinity;
-
+    let bestSym = null, bestScore = -Infinity, bestMaxShares = 0;
     for (const sym of symbols) {
-        const [longShares] = ns.stock.getPosition(sym);
-        const maxShares = ns.stock.getMaxShares(sym);
-        if (longShares > 0.5 * maxShares) continue; // pas sur-exposé
-
-        const forecast = ns.stock.getForecast(sym);
+        const { pos, forecast, vol, maxShares } = data[sym];
+        if (pos[0] > 0.5 * maxShares) continue;
         if (forecast < minForecast) continue;
-
-        const vol = ns.stock.getVolatility(sym);
-        const prob = 2 * (forecast - 0.5);
-        const expected = vol * prob;
-
-        if (expected > bestScore) {
-            bestScore = expected;
-            bestSym = sym;
+        const score = vol * 2 * (forecast - 0.5);
+        if (score > bestScore) {
+            bestScore = score; bestSym = sym; bestMaxShares = maxShares;
         }
     }
 
     if (!bestSym) return;
+    const qty = Math.min(Math.floor((investable - commission) / data[bestSym].ask), bestMaxShares);
+    if (qty <= 0) return;
 
-    const ask = ns.stock.getAskPrice(bestSym);
-    const maxSpend = investable - commission;
-    const toBuy = Math.floor(maxSpend / ask);
-    if (toBuy <= 0) return;
-
-    const maxShares = ns.stock.getMaxShares(bestSym);
-    const realQty = Math.min(toBuy, maxShares);
-    const execPrice = ns.stock.buyStock(bestSym, realQty);
+    const execPrice = ns.stock.buyStock(bestSym, qty);
     if (execPrice > 0) {
-        const total = execPrice * realQty + commission;
-        ns.print(
-            `BUY LONG ${bestSym} | qté=${realQty} | coût≈$${ns.formatNumber(total, 2)}`
-        );
+        ns.print(`BUY LONG ${bestSym} | qté=${qty} | coût≈$${ns.formatNumber(execPrice * qty + commission, 2)}`);
     }
 }
 
-/**
- * Ouvre un SHORT raisonnable (capé) sur la valeur la plus baissière.
- */
-async function openBestShort(
-    ns,
-    symbols,
-    commission,
-    maxForecastToShort,
-    cashToKeep,
-    maxOfMaxShares,
-    portfolioRatio
-) {
-    let bestSym = null;
-    let bestScore = -Infinity;
-
+function openBestShort(ns, symbols, data, cash, commission, maxForecast, cashToKeep, maxOfMaxShares, portfolioRatio) {
+    let bestSym = null, bestScore = -Infinity, bestMaxShares = 0;
     for (const sym of symbols) {
-        const pos = ns.stock.getPosition(sym);
-        const shortShares = pos[2];
-        const maxShares = ns.stock.getMaxShares(sym);
-
-        // pas plus de 50% déjà shorté
-        if (shortShares > 0.5 * maxShares) continue;
-
-        const forecast = ns.stock.getForecast(sym);
-        if (forecast > maxForecastToShort) continue;
-
-        const vol = ns.stock.getVolatility(sym);
-        const probDown = 2 * (0.5 - forecast);
-        const expected = vol * probDown;
-
-        if (expected > bestScore) {
-            bestScore = expected;
-            bestSym = sym;
+        const { pos, forecast, vol, maxShares } = data[sym];
+        if (pos[2] > 0.5 * maxShares) continue;
+        if (forecast > maxForecast) continue;
+        const score = vol * 2 * (0.5 - forecast);
+        if (score > bestScore) {
+            bestScore = score; bestSym = sym; bestMaxShares = maxShares;
         }
     }
 
     if (!bestSym) return;
-
-    const maxShares = ns.stock.getMaxShares(bestSym);
-    const price = ns.stock.getBidPrice(bestSym);
-
-    // 1) cap en % du maxShares
-    const capByPercent = Math.floor(maxShares * maxOfMaxShares);
-
-    // 2) cap par “budget” théorique (même si le short n’a pas besoin de cash)
-    const cash = ns.getServerMoneyAvailable("home");
     const investable = Math.max(0, cash - cashToKeep);
-    const budget = investable * portfolioRatio;
-    const capByBudget = Math.floor(budget / price);
-
-    const qty = Math.min(capByPercent, capByBudget);
+    const qty = Math.min(
+        Math.floor(bestMaxShares * maxOfMaxShares),
+        Math.floor(investable * portfolioRatio / data[bestSym].bid)
+    );
     if (qty <= 0) return;
 
     const execPrice = ns.stock.shortStock(bestSym, qty);
     if (execPrice > 0) {
-        ns.print(
-            `OPEN SHORT ${bestSym} | qté=${qty} | prix≈$${ns.formatNumber(execPrice, 2)}`
-        );
+        ns.print(`OPEN SHORT ${bestSym} | qté=${qty} | prix≈$${ns.formatNumber(execPrice, 2)}`);
     }
 }
