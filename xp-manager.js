@@ -1,7 +1,9 @@
 /** @param {NS} ns **/
 export async function main(ns) {
     const workerScript = "xp-worker.js";
-    const target       = "n00dles";
+    const target       = "n00dles"; // pour l'XP
+    // const target       = "foodnstuff";       // pour l'argent
+    // const target       = "joesguns";         // pour l'argent
     const HOME_RESERVE = 27;
 
     const servers = ["home"];
