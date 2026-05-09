@@ -22,7 +22,7 @@ export async function main(ns) {
 
     let totalPnl = 0;
     ns.atExit(() => {
-        ns.tprint(`[STOCK] PnL total réalisé : $${ns.formatNumber(totalPnl, 2)}`);
+        ns.tprint(`[STOCK] PnL total réalisé : $${ns.format.number(totalPnl, 2)}`);
         clearOverview();
     });
 
@@ -80,7 +80,7 @@ function sellBadLongs(ns, symbols, data, commission, sellForecast) {
                 const realized = execPrice * longShares - cost - minProfit;
                 pnl += realized;
                 ns.print(
-                    `SELL LONG ${sym} | qté=${longShares} | PnL=$${ns.formatNumber(realized, 2)} (${((realized / cost) * 100).toFixed(2)}%)`
+                    `SELL LONG ${sym} | qté=${longShares} | PnL=$${ns.format.number(realized, 2)} (${((realized / cost) * 100).toFixed(2)}%)`
                 );
             }
         } else {
@@ -108,7 +108,7 @@ function sellBadShorts(ns, symbols, data, commission, closeForecast, maxLossRati
                 const realized = (shortAvgPrice - execPrice) * shortShares - 2 * commission;
                 pnl += realized;
                 ns.print(
-                    `CLOSE SHORT ${sym} | qté=${shortShares} | PnL=$${ns.formatNumber(realized, 2)} (${((realized / notional) * 100).toFixed(2)}%)`
+                    `CLOSE SHORT ${sym} | qté=${shortShares} | PnL=$${ns.format.number(realized, 2)} (${((realized / notional) * 100).toFixed(2)}%)`
                 );
             }
         }
@@ -137,7 +137,7 @@ function buyBestLong(ns, symbols, data, cash, commission, minForecast, cashToKee
 
     const execPrice = ns.stock.buyStock(bestSym, qty);
     if (execPrice > 0) {
-        ns.print(`BUY LONG ${bestSym} | qté=${qty} | coût≈$${ns.formatNumber(execPrice * qty + commission, 2)}`);
+        ns.print(`BUY LONG ${bestSym} | qté=${qty} | coût≈$${ns.format.number(execPrice * qty + commission, 2)}`);
     }
 }
 
@@ -163,7 +163,7 @@ function openBestShort(ns, symbols, data, cash, commission, maxForecast, cashToK
 
     const execPrice = ns.stock.shortStock(bestSym, qty);
     if (execPrice > 0) {
-        ns.print(`OPEN SHORT ${bestSym} | qté=${qty} | prix≈$${ns.formatNumber(execPrice, 2)}`);
+        ns.print(`OPEN SHORT ${bestSym} | qté=${qty} | prix≈$${ns.format.number(execPrice, 2)}`);
     }
 }
 
@@ -180,7 +180,7 @@ function calcUnrealized(symbols, data) {
 }
 
 function fmt(ns, n) {
-    const s = ns.formatNumber(n, 2);
+    const s = ns.format.number(n, 2);
     return (n >= 0 ? "+" : "") + "$" + s;
 }
 
@@ -233,9 +233,9 @@ function updateOverview(ns, realized, unrealized) {
         const color = total >= 0 ? "#4caf50" : "#f44336";
         hook0.innerHTML = "Stock réalisé<br>Stock latent<br>Stock total";
         hook1.innerHTML = [
-            `$${ns.formatNumber(realized, 2)}`,
-            `$${ns.formatNumber(unrealized, 2)}`,
-            `<strong style="color:${color}">$${ns.formatNumber(total, 2)}</strong>`,
+            `$${ns.format.number(realized, 2)}`,
+            `$${ns.format.number(unrealized, 2)}`,
+            `<strong style="color:${color}">$${ns.format.number(total, 2)}</strong>`,
         ].join("<br>");
     } catch (_) {}
 }

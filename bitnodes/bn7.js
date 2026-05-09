@@ -42,7 +42,7 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN7 : Bladeburners 2079 ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(player.money)}`);
+    ns.print(`Money  : $${ns.format.number(player.money)}`);
     ns.print(`STR ${s.strength}  DEF ${s.defense}  DEX ${s.dexterity}  AGI ${s.agility}`);
 
     if (ns.bladeburner.inBladeburner()) {

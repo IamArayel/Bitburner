@@ -26,7 +26,7 @@ export async function main(ns) {
 
     // Récapitulatif à l'arrêt
     ns.atExit(() => {
-        ns.tprint(`[STOCK] Fin de liquidation. PnL réalisé cette session : $${ns.formatNumber(totalPnl, 2)}`);
+        ns.tprint(`[STOCK] Fin de liquidation. PnL réalisé cette session : $${ns.format.number(totalPnl, 2)}`);
     });
 
     while (true) {
@@ -61,7 +61,7 @@ export async function main(ns) {
                     }
                 } else {
                     // Optionnel : Afficher qu'on garde pour maximiser le gain
-                    // ns.print(`HOLD LONG ${sym} (${ns.formatNumber(longShares)}) - Forecast: ${forecast.toFixed(3)}`);
+                    // ns.print(`HOLD LONG ${sym} (${ns.format.number(longShares)}) - Forecast: ${forecast.toFixed(3)}`);
                 }
             }
 
@@ -88,7 +88,7 @@ export async function main(ns) {
         }
 
         if (loopPnl !== 0) {
-            ns.print(`[PNL] Boucle: $${ns.formatNumber(loopPnl, 2)} | Total: $${ns.formatNumber(totalPnl, 2)}`);
+            ns.print(`[PNL] Boucle: $${ns.format.number(loopPnl, 2)} | Total: $${ns.format.number(totalPnl, 2)}`);
         }
 
         await ns.sleep(SLEEP_TIME);
@@ -100,8 +100,8 @@ export async function main(ns) {
  */
 function logTransaction(ns, type, sym, shares, profit) {
     const color = profit >= 0 ? "INFO" : "WARN";
-    ns.print(`${type} ${sym} | Qté: ${ns.formatNumber(shares)} | PnL: $${ns.formatNumber(profit, 2)}`);
+    ns.print(`${type} ${sym} | Qté: ${ns.format.number(shares)} | PnL: $${ns.format.number(profit, 2)}`);
     if (profit > 0) {
-        ns.toast(`${type} ${sym}: +$${ns.formatNumber(profit, 2)}`, "success", 4000);
+        ns.toast(`${type} ${sym}: +$${ns.format.number(profit, 2)}`, "success", 4000);
     }
 }

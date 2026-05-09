@@ -39,14 +39,14 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN11 : The Big Crash ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(money)}`);
+    ns.print(`Money  : $${ns.format.number(money)}`);
     ns.print(`TIX    : ${hasTix ? "OK" : "Non"}`);
     ns.print(`4S     : ${has4s ? "OK" : "Non"}`);
 
     if (hasTix && has4s) {
       const market = analyzeMarket(ns);
       ns.print(`Marché : ${market.state} (${market.rising} hausse / ${market.falling} baisse)`);
-      ns.print(`Portfolio: $${ns.formatNumber(market.portfolioValue)}`);
+      ns.print(`Portfolio: $${ns.format.number(market.portfolioValue)}`);
     }
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {

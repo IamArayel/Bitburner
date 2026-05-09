@@ -229,8 +229,8 @@ function checkInvestment(ns, corp, thresh1, thresh2) {
     const { funds: amount, round } = offer;
     if ((round === 1 && amount >= thresh1) || (round === 2 && amount >= thresh2)) {
       ns.corporation.acceptInvestmentOffer();
-      ns.print(`[INVEST] Round ${round} accepté : +$${ns.formatNumber(amount, 2)}`);
-      ns.toast(`[CORP] Invest R${round} : +$${ns.formatNumber(amount, 2)}`, "success", 10_000);
+      ns.print(`[INVEST] Round ${round} accepté : +$${ns.format.number(amount, 2)}`);
+      ns.toast(`[CORP] Invest R${round} : +$${ns.format.number(amount, 2)}`, "success", 10_000);
     }
   } catch {}
 }
@@ -246,9 +246,9 @@ function printDashboard(ns, corp, div, cities) {
   ns.print(`  CORP MANAGER                          ${time}`);
   ns.print(sep);
   ns.print(`  ${corp.name}  ${corp.public ? "(PUBLIQUE)" : "(Privée)"}`);
-  ns.print(`  Fonds   : $${ns.formatNumber(corp.funds, 2)}`);
-  ns.print(`  Revenue : $${ns.formatNumber(corp.revenue, 2)}/s`);
-  ns.print(`  Profit  : ${profit >= 0 ? "+" : ""}$${ns.formatNumber(profit, 2)}/s`);
+  ns.print(`  Fonds   : $${ns.format.number(corp.funds, 2)}`);
+  ns.print(`  Revenue : $${ns.format.number(corp.revenue, 2)}/s`);
+  ns.print(`  Profit  : ${profit >= 0 ? "+" : ""}$${ns.format.number(profit, 2)}/s`);
 
   // Upgrades corp
   try {
@@ -267,7 +267,7 @@ function printDashboard(ns, corp, div, cities) {
     const ssOk   = ns.corporation.hasUnlock("Smart Supply") ? "SS✓" : "SS✗";
     const advert = ns.corporation.getHireAdVertCount(div);
     ns.print(`  Awareness:${divInfo.awareness.toFixed(0)}  Pop:${divInfo.popularity.toFixed(0)}  AdVert:${advert}  ${ssOk}`);
-    ns.print(`  Research : ${ns.formatNumber(divInfo.researchPoints, 1)} pts`);
+    ns.print(`  Research : ${ns.format.number(divInfo.researchPoints, 1)} pts`);
 
     // Statut recherche
     const researchDone = RESEARCH_PRIORITY.filter(r => {
@@ -288,7 +288,7 @@ function printDashboard(ns, corp, div, cities) {
         ns.print(
           `  ${city.slice(0, 9).padEnd(9)}  ${String(off.numEmployees).padStart(2)}/${off.size}  ` +
           `${String(wh.size).padStart(4)}  ` +
-          `${ns.formatNumber(food, 1).padStart(7)}  ${ns.formatNumber(plants, 1)}`
+          `${ns.format.number(food, 1).padStart(7)}  ${ns.format.number(plants, 1)}`
         );
       } catch {}
     }
@@ -300,11 +300,11 @@ function printDashboard(ns, corp, div, cities) {
       const offer = ns.corporation.getInvestmentOffer();
       if (offer) {
         ns.print(sep);
-        ns.print(`  Offre R${offer.round} : $${ns.formatNumber(offer.funds, 2)}`);
+        ns.print(`  Offre R${offer.round} : $${ns.format.number(offer.funds, 2)}`);
       }
     } catch {}
   }
 
   ns.print(sep);
-  ns.ui.setTailTitle(`Corp Manager | Rev: $${ns.formatNumber(corp.revenue, 2)}/s`);
+  ns.ui.setTailTitle(`Corp Manager | Rev: $${ns.format.number(corp.revenue, 2)}/s`);
 }

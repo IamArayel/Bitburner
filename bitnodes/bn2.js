@@ -44,7 +44,7 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN2 : Rise of the Underworld ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(player.money)}`);
+    ns.print(`Money  : $${ns.format.number(player.money)}`);
     ns.print(`Karma  : ${karma.toFixed(0)} / ${KARMA_REQUIRED}`);
 
     if (inGang) {

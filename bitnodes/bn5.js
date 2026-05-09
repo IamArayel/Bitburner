@@ -38,7 +38,7 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN5 : Artificial Intelligence ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(player.money)}`);
+    ns.print(`Money  : $${ns.format.number(player.money)}`);
 
     const s = player.skills;
     ns.print(`Combat : STR ${s.strength} / DEF ${s.defense} / DEX ${s.dexterity} / AGI ${s.agility}`);

@@ -42,14 +42,14 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN8 : Ghost of Wall Street ===");
     ns.print(`Hack     : ${hack} / 3000`);
-    ns.print(`Money    : $${ns.formatNumber(money)}`);
-    ns.print(`TIX API  : ${hasTix ? "OK" : `Non ($${ns.formatNumber(TIX_COST)} requis)`}`);
-    ns.print(`4S Data  : ${has4s ? "OK" : `Non ($${ns.formatNumber(WSAPI_COST)} requis)`}`);
+    ns.print(`Money    : $${ns.format.number(money)}`);
+    ns.print(`TIX API  : ${hasTix ? "OK" : `Non ($${ns.format.number(TIX_COST)} requis)`}`);
+    ns.print(`4S Data  : ${has4s ? "OK" : `Non ($${ns.format.number(WSAPI_COST)} requis)`}`);
     ns.print(`Trader   : ${ns.scriptRunning("stockTrader.js", "home") ? "Actif" : "Inactif"}`);
 
     if (hasTix) {
       const portfolio = getPortfolioValue(ns);
-      ns.print(`Portfolio: $${ns.formatNumber(portfolio)}`);
+      ns.print(`Portfolio: $${ns.format.number(portfolio)}`);
     }
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {

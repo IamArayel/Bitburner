@@ -14,7 +14,7 @@ export async function main(ns) {
                 const cost  = longAvg * longShares;
                 const pnl   = gross - cost - 200_000; // 2 commissions approximatives
                 totalPnl += pnl;
-                ns.tprint(`CLOSE LONG ${sym} | PnL ≈ $${ns.formatNumber(pnl, 2)}`);
+                ns.tprint(`CLOSE LONG ${sym} | PnL ≈ $${ns.format.number(pnl, 2)}`);
             }
         }
 
@@ -26,11 +26,11 @@ export async function main(ns) {
                 const gross = (shortAvg - exec) * shortShares;
                 const pnl   = gross - 200_000; // 2 commissions approximatives
                 totalPnl += pnl;
-                ns.tprint(`CLOSE SHORT ${sym} | PnL ≈ $${ns.formatNumber(pnl, 2)}`);
+                ns.tprint(`CLOSE SHORT ${sym} | PnL ≈ $${ns.format.number(pnl, 2)}`);
             }
         }
     }
 
     ns.tprint(`=== RÉCAP RESET BOURSE ===`);
-    ns.tprint(`PnL total réalisé sur fermeture forcée : $${ns.formatNumber(totalPnl, 2)}`);
+    ns.tprint(`PnL total réalisé sur fermeture forcée : $${ns.format.number(totalPnl, 2)}`);
 }

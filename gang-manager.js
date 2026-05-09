@@ -71,11 +71,11 @@ function printDashboard(ns, members, owned, allEquip, cash, bought, spent, pendi
     ns.print(sep);
     ns.print(`  GANG MANAGER                        ${time}`);
     ns.print(sep);
-    ns.print(`  Cash dispo   : $${ns.formatNumber(cash, 2)}`);
+    ns.print(`  Cash dispo   : $${ns.format.number(cash, 2)}`);
     if (bought > 0) {
-        ns.print(`  Acheté       : ${bought} item(s) (-$${ns.formatNumber(spent, 2)})`);
+        ns.print(`  Acheté       : ${bought} item(s) (-$${ns.format.number(spent, 2)})`);
     }
-    ns.print(`  Reste total  : $${ns.formatNumber(pending, 2)}`);
+    ns.print(`  Reste total  : $${ns.format.number(pending, 2)}`);
     ns.print(sep);
     ns.print(`  MEMBRES (${members.length})`);
 
@@ -95,12 +95,12 @@ function printDashboard(ns, members, owned, allEquip, cash, bought, spent, pendi
             .filter(eq => !owned[incomplete].has(eq.name))
             .slice(0, 5); // top 5 les moins chers
         for (const eq of missing) {
-            ns.print(`  [${eq.type.padEnd(11)}] ${eq.name.padEnd(24)} $${ns.formatNumber(eq.cost, 2)}`);
+            ns.print(`  [${eq.type.padEnd(11)}] ${eq.name.padEnd(24)} $${ns.format.number(eq.cost, 2)}`);
         }
     }
 
     ns.print(sep);
-    ns.ui.setTailTitle(`Gang Manager | Reste: $${ns.formatNumber(pending, 2)}`);
+    ns.ui.setTailTitle(`Gang Manager | Reste: $${ns.format.number(pending, 2)}`);
 }
 
 function progressBar(pct, width) {

@@ -34,15 +34,15 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN9 : Hacktocracy ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(money)}`);
+    ns.print(`Money  : $${ns.format.number(money)}`);
 
     const nodeCount = ns.hacknet.numNodes();
     ns.print(`Nodes  : ${nodeCount} / ${MAX_NODES}`);
 
     if (nodeCount > 0) {
       const stats = ns.hacknet.getNodeStats(0);
-      ns.print(`Hashes : ${ns.formatNumber(ns.hacknet.numHashes())} / ${ns.formatNumber(ns.hacknet.hashCapacity())}`);
-      ns.print(`Gain   : ${ns.formatNumber(totalHashGain(ns))} h/s`);
+      ns.print(`Hashes : ${ns.format.number(ns.hacknet.numHashes())} / ${ns.format.number(ns.hacknet.hashCapacity())}`);
+      ns.print(`Gain   : ${ns.format.number(totalHashGain(ns))} h/s`);
     }
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {

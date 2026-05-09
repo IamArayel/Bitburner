@@ -39,7 +39,7 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN13 : They're Lunatics ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(player.money)}`);
+    ns.print(`Money  : $${ns.format.number(player.money)}`);
 
     const frags = ns.stanek.activeFragments();
     ns.print(`Fragments actifs: ${frags.length}`);

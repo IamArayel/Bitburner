@@ -28,7 +28,7 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN10 : Digital Carbon ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(player.money)}`);
+    ns.print(`Money  : $${ns.format.number(player.money)}`);
     ns.print(`Sleeves: ${numSleeves}`);
 
     for (let i = 0; i < numSleeves; i++) {

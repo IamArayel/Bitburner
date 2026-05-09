@@ -63,13 +63,13 @@ export async function main(ns) {
         ns.clearLog();
         ns.print("===  HACKING PROGRESS ===");
         ns.print(`Current level  : ${currentLevel}`);
-        ns.print(`XP/s average   : ${confident ? ns.formatNumber(xpPerSecond) : "—"}`);
+        ns.print(`XP/s average   : ${confident ? ns.format.number(xpPerSecond) : "—"}`);
         ns.print(`Samples        : ${xpSamples.length}/${SAMPLE_WINDOW_SECONDS}`);
         ns.print("----------------------------------------");
 
         if (confident && xpPerSecond > 0) {
             ns.print(
-                `Next level     : ${ns.tFormat((xpRemainingInLevel / xpPerSecond) * 1000)}`
+                `Next level     : ${ns.format.time((xpRemainingInLevel / xpPerSecond) * 1000)}`
             );
         } else {
             ns.print("Next level     : analyzing...");
@@ -80,7 +80,7 @@ export async function main(ns) {
 
         //if (confident && xpPerSecond > 0) {
         //    ns.print(
-        //        `Temps restant       : ${ns.tFormat((xpRemainingToTarget / xpPerSecond) 
+        //        `Temps restant       : ${ns.format.time((xpRemainingToTarget / xpPerSecond) 
         //        //* 1000
         //        )}`
         //    );

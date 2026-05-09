@@ -73,7 +73,7 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN4 : The Singularity ===");
     ns.print(`Hack       : ${hack} / 3000`);
-    ns.print(`Money      : $${ns.formatNumber(money)}`);
+    ns.print(`Money      : $${ns.format.number(money)}`);
     ns.print(`Augments   : ${installed} installées / ${owned.length} possédées`);
     ns.print(`Focus      : ${focus}`);
 
@@ -96,7 +96,7 @@ async function manageFactionWork(ns, hack) {
   const repNeeded = 200_000; // seuil pour les meilleures augments
   if (rep < repNeeded) {
     try { ns.singularity.workForFaction(best, "Hacking Contracts", false); } catch {}
-    return `Travaille pour ${best} (${ns.formatNumber(rep)} / ${ns.formatNumber(repNeeded)} rep)`;
+    return `Travaille pour ${best} (${ns.format.number(rep)} / ${ns.format.number(repNeeded)} rep)`;
   }
   return `${best} — réputation suffisante`;
 }

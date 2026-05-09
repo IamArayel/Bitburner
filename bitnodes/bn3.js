@@ -37,12 +37,12 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN3 : Corporatocracy ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(player.money)}`);
+    ns.print(`Money  : $${ns.format.number(player.money)}`);
 
     if (ns.corporation.hasCorporation()) {
       const corp = ns.corporation.getCorporation();
       ns.print(`Corp   : ${corp.name} (${corp.public ? "Publique" : "Privée"})`);
-      ns.print(`Revenue: $${ns.formatNumber(corp.revenue)}/s`);
+      ns.print(`Revenue: $${ns.format.number(corp.revenue)}/s`);
       ns.print(`Divisions: ${corp.divisions.length > 0 ? corp.divisions.join(", ") : "aucune"}`);
     }
 

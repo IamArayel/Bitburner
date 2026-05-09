@@ -27,7 +27,7 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN1 : Source Genesis ===");
     ns.print(`Hack   : ${hack} / 3000`);
-    ns.print(`Money  : $${ns.formatNumber(money)}`);
+    ns.print(`Money  : $${ns.format.number(money)}`);
     ns.print(`Cible  : ${getBestTarget(ns)}`);
     ns.print(`Phase  : ${phase}`);
 

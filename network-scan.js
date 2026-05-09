@@ -86,8 +86,8 @@ export async function main(ns) {
     for (const s of displayList) {
         // On affiche uniquement les serveurs qui ont de l'argent ou de la RAM
         if (s.money > 0 || s.ram > 0) {
-            let moneyStr = ns.formatNumber(s.money);
-            let ramStr = ns.formatRam(s.ram);
+            let moneyStr = ns.format.number(s.money);
+            let ramStr = ns.format.ram(s.ram);
             
             // Coloration conditionnelle simple via symboles
             let prefix = s.root === "OUI" ? "✓ " : "X ";
