@@ -10,8 +10,8 @@ export async function main(ns) {
     }
 
     ns.disableLog("ALL");
-    ns.tail();
-    ns.resizeTail(470, 265);
+    ns.ui.openTail();
+    ns.ui.resizeTail(470, 265);
 
     const mult = ns.getPlayer().mults.hacking;
 

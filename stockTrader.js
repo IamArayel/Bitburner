@@ -1,6 +1,6 @@
 /** @param {NS} ns **/
 export async function main(ns) {
-    ns.tail();
+    ns.ui.openTail();
 
     const COMMISSION                 = 100_000;
     const KEEP_CASH                  = 100_000;

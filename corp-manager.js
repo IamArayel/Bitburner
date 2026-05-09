@@ -6,7 +6,7 @@
  */
 export async function main(ns) {
   ns.disableLog("ALL");
-  ns.tail();
+  ns.ui.openTail();
   ns.ui.resizeTail(600, 520);
 
   const CORP    = "MegaCorp";

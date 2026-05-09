@@ -1,7 +1,7 @@
 /** @param {NS} ns **/
 export async function main(ns) {
     ns.disableLog("ALL");
-    ns.tail();
+    ns.ui.openTail();
     ns.ui.resizeTail(520, 400);
 
     // Garder une réserve de cash avant d'acheter de l'équipement

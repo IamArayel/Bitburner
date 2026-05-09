@@ -1,6 +1,6 @@
 /** @param {NS} ns **/
 export async function main(ns) {
-    ns.tail();
+    ns.ui.openTail();
     try { ns.setAutoSchedule(false); } catch (_) {}
 
     // ===== Paramètres généraux =====

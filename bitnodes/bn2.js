@@ -13,7 +13,7 @@ const MAX_MEMBERS = 12;
 /** @param {NS} ns */
 export async function main(ns) {
   ns.disableLog("ALL");
-  ns.tail();
+  ns.ui.openTail();
 
   while (true) {
     const player = ns.getPlayer();

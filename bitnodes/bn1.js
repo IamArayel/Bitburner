@@ -9,7 +9,7 @@ const FINAL = "w0r1d_d43m0n";
 /** @param {NS} ns */
 export async function main(ns) {
   ns.disableLog("ALL");
-  ns.tail();
+  ns.ui.openTail();
 
   while (true) {
     const player = ns.getPlayer();

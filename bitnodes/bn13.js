@@ -22,7 +22,7 @@ const FRAGMENT_LAYOUT = [
 /** @param {NS} ns */
 export async function main(ns) {
   ns.disableLog("ALL");
-  ns.tail();
+  ns.ui.openTail();
 
   // Placer les fragments au démarrage
   placeFragments(ns);

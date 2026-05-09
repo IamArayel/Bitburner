@@ -31,7 +31,7 @@ export async function main(ns) {
   ns.disableLog("getServerMaxRam");
   ns.disableLog("getServerUsedRam");
   ns.disableLog("sleep");
-  ns.tail();
+  ns.ui.openTail();
 
   // Petite aide si pas de Singularity
   const hasSingularity = typeof ns.singularity?.workForFaction === "function";

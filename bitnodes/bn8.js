@@ -13,7 +13,7 @@ const WSAPI_COST = 25_000_000_000;    // $25B (avec TIX déjà acheté)
 /** @param {NS} ns */
 export async function main(ns) {
   ns.disableLog("ALL");
-  ns.tail();
+  ns.ui.openTail();
 
   while (true) {
     const player = ns.getPlayer();

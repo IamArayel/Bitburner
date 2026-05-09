@@ -22,7 +22,7 @@ const HACK_FACTIONS = [
 /** @param {NS} ns */
 export async function main(ns) {
   ns.disableLog("ALL");
-  ns.tail();
+  ns.ui.openTail();
 
   while (true) {
     const player = ns.getPlayer();

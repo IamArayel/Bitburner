@@ -2,7 +2,7 @@
 export async function main(ns) {
     const start = "home";
     ns.disableLog("ALL");
-    ns.tail(); 
+    ns.ui.openTail();
 
     // purchaseProgram retourne false si déjà possédé ou fonds insuffisants → pas besoin de prix ni de pré-check
     const programs = ["BruteSSH.exe", "FTPCrack.exe", "relaySMTP.exe", "HTTPWorm.exe", "SQLInject.exe"];
