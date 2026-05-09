@@ -57,11 +57,10 @@ async function tryRoot(ns, host) {
 
   const required = ns.getServerNumPortsRequired(host);
   if (ports >= required) {
-    try {
-      ns.nuke(host);
+    if (ns.nuke(host)) {
       ns.print(`[ROOT] ${host} rooté.`);
-    } catch (e) {
-      ns.print(`[ROOT][ERR] ${host} : ${e}`);
+    } else {
+      ns.print(`[ROOT][ERR] ${host} : nuke refusé.`);
     }
   }
 }

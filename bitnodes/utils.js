@@ -20,7 +20,7 @@ export function tryRoot(ns, host) {
   if (ns.fileExists("relaySMTP.exe", "home")) ns.relaysmtp(host);
   if (ns.fileExists("HTTPWorm.exe", "home")) ns.httpworm(host);
   if (ns.fileExists("SQLInject.exe", "home")) ns.sqlinject(host);
-  try { ns.nuke(host); return true; } catch { return false; }
+  return ns.nuke(host);
 }
 
 /** @param {NS} ns */

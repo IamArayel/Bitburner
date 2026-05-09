@@ -95,7 +95,7 @@ async function manageFactionWork(ns, hack) {
   const rep = ns.singularity.getFactionRep(best);
   const repNeeded = 200_000; // seuil pour les meilleures augments
   if (rep < repNeeded) {
-    try { ns.singularity.workForFaction(best, "hacking", false); } catch {}
+    try { ns.singularity.workForFaction(best, "Hacking Contracts", false); } catch {}
     return `Travaille pour ${best} (${ns.formatNumber(rep)} / ${ns.formatNumber(repNeeded)} rep)`;
   }
   return `${best} — réputation suffisante`;

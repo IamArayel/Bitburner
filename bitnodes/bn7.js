@@ -26,9 +26,10 @@ export async function main(ns) {
       // Seuil plus élevé qu'en BN6 à cause des multiplicateurs
       const need = s.strength < 200 || s.defense < 200 || s.dexterity < 200 || s.agility < 200;
       if (need && ns.singularity) {
-        const lowest = ["strength", "defense", "dexterity", "agility"]
+        const lowestKey = ["strength", "defense", "dexterity", "agility"]
           .sort((a, b) => s[a] - s[b])[0];
-        try { ns.singularity.gymWorkout("Powerhouse Gym", lowest, false); } catch {}
+        const gymStat = { strength: "Strength", defense: "Defense", dexterity: "Dexterity", agility: "Agility" };
+        try { ns.singularity.gymWorkout("Powerhouse Gym", gymStat[lowestKey], false); } catch {}
       }
       if (s.strength >= 200 && s.defense >= 200 && s.dexterity >= 200 && s.agility >= 200) {
         try { ns.bladeburner.joinBladeburnerDivision(); } catch {}

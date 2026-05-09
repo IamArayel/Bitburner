@@ -71,13 +71,13 @@ function manageSleeve(ns, i, hack) {
   // 3. Tâche optimale selon index
   if (i === 0) {
     // Sleeve 0 : crimes pour argent (Homicide = meilleur ratio $)
-    if (!task || task.crimeType !== "homicide") {
-      ns.sleeve.setToCommitCrime(i, "homicide");
+    if (!task || task.crimeType !== "Homicide") {
+      ns.sleeve.setToCommitCrime(i, "Homicide");
     }
   } else if (i === 1) {
     // Sleeve 1 : crimes pour karma (gang possible)
-    if (!task || task.crimeType !== "mug") {
-      ns.sleeve.setToCommitCrime(i, "mug");
+    if (!task || task.crimeType !== "Mug Someone") {
+      ns.sleeve.setToCommitCrime(i, "Mug Someone");
     }
   } else if (i < 4) {
     // Sleeves 2-3 : farm XP hacking (si hack level bas)
@@ -86,14 +86,14 @@ function manageSleeve(ns, i, hack) {
         try { ns.sleeve.setToUniversityCoursework(i, "Rothman University", "Algorithms"); } catch {}
       }
     } else {
-      if (!task || task.crimeType !== "homicide") {
-        ns.sleeve.setToCommitCrime(i, "homicide");
+      if (!task || task.crimeType !== "Homicide") {
+        ns.sleeve.setToCommitCrime(i, "Homicide");
       }
     }
   } else {
     // Sleeves 4+ : crimes homicide
-    if (!task || task.crimeType !== "homicide") {
-      ns.sleeve.setToCommitCrime(i, "homicide");
+    if (!task || task.crimeType !== "Homicide") {
+      ns.sleeve.setToCommitCrime(i, "Homicide");
     }
   }
 }

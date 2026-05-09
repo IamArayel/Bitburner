@@ -28,7 +28,7 @@ export async function main(ns) {
       } else {
         // Gym via Singularity si dispo
         if (ns.singularity) {
-          try { ns.singularity.gymWorkout("Powerhouse Gym", "strength", false); } catch {}
+          try { ns.singularity.gymWorkout("Powerhouse Gym", "Strength", false); } catch {}
         }
       }
     } else {

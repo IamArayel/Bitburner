@@ -28,8 +28,8 @@ export async function main(ns) {
       const need = s.strength < 100 || s.defense < 100 || s.dexterity < 100 || s.agility < 100;
       if (need && ns.singularity) {
         const stat = s.strength <= s.defense && s.strength <= s.dexterity && s.strength <= s.agility
-          ? "strength" : s.defense <= s.dexterity && s.defense <= s.agility ? "defense"
-          : s.dexterity <= s.agility ? "dexterity" : "agility";
+          ? "Strength" : s.defense <= s.dexterity && s.defense <= s.agility ? "Defense"
+          : s.dexterity <= s.agility ? "Dexterity" : "Agility";
         try { ns.singularity.gymWorkout("Powerhouse Gym", stat, false); } catch {}
       }
       if (s.strength >= 100 && s.defense >= 100 && s.dexterity >= 100 && s.agility >= 100) {
