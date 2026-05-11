@@ -19,13 +19,9 @@ export async function main(ns) {
     // ce qui jouerait contre notre short
     const SHORT_EXIT = 0.50;
 
-    // Liste codée en dur pour éviter ns.stock.getSymbols() qui coûte 2 GB de RAM.
-    // Les symboles sont fixes dans Bitburner, donc cette liste ne change jamais.
-    const symbols = [
-        "ECP","MGCP","BLD","CLRK","OMTK","FSIG","KGI","FLCM","STM","DCOMM",
-        "HLS","VITA","ICRS","UNL","AERO","OMN","SLRS","GPH","NVMD","WDS",
-        "LXO","RHOC","APHE","SYSC","CTK","NTLK","OMGA","FNS","SGC"
-    ];
+    // Récupère la liste officielle des symboles depuis l'API du jeu.
+    // Coûte 2 GB de RAM mais garantit que la liste est toujours correcte.
+    const symbols = ns.stock.getSymbols();
 
     // Accumule le profit/perte réalisé sur toute la session
     let totalPnl = 0;
