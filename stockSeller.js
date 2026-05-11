@@ -1,107 +1,90 @@
 /** @param {NS} ns **/
 export async function main(ns) {
     ns.ui.openTail();
-    try { ns.setAutoSchedule(false); } catch (_) {}
 
-    // ===== Paramètres généraux =====
-    const COMMISSION = 100_000;           // commission par ordre (aller)
-    //const KEEP_CASH = 30_000_000_000;  // garder "juste" $30b sur le compte
-    const KEEP_CASH = 100_000_000;        // garder $100m sur le compte
-    //const KEEP_CASH = 100_000;         // garder $100k sur le compte
-    const SLEEP_TIME = 6000;              // tick bourse ~6s
+    // Commission facturée par ordre (achat OU vente) ; on compte x2 par position
+    // car chaque position a été ouverte (achat) et sera fermée (vente) = 2 ordres
+    const COMMISSION = 100_000;
 
-    // ===== Paramètres LONG =====
-    // NOTE: Pour la liquidation, on vend dès que les chances passent sous 50%
-    const LONG_EXIT_THRESHOLD = 0.50;
+    // Durée d'attente entre chaque cycle : le marché Bitburner tick toutes les ~6 s
+    const SLEEP_TIME = 6000;
 
-    // ===== Paramètres SHORT =====
-    // NOTE: Pour la liquidation, on ferme dès que les chances montent au-dessus de 50%
-    const SHORT_EXIT_THRESHOLD = 0.50;
+    // Seuil de forecast en dessous duquel on vend une position LONG :
+    // forecast < 0.5 signifie que le prix a plus de chances de baisser que de monter,
+    // inutile de conserver la position plus longtemps
+    const LONG_EXIT  = 0.50;
 
-    const symbols = ns.stock.getSymbols();
+    // Seuil de forecast au-dessus duquel on ferme une position SHORT :
+    // forecast > 0.5 signifie que le prix a plus de chances de monter,
+    // ce qui jouerait contre notre short
+    const SHORT_EXIT = 0.50;
+
+    // Liste codée en dur pour éviter ns.stock.getSymbols() qui coûte 2 GB de RAM.
+    // Les symboles sont fixes dans Bitburner, donc cette liste ne change jamais.
+    const symbols = [
+        "ECP","MGCP","BLD","CLRK","OMTK","FSIG","KGI","FLCM","STM","DCOMM",
+        "HLS","VITA","ICRS","UNL","AERO","OMN","SLRS","GPH","NVMD","WDS",
+        "LXO","RHOC","APHE","SYSC","CTK","NTLK","OMGA","FNS","SGC"
+    ];
+
+    // Accumule le profit/perte réalisé sur toute la session
     let totalPnl = 0;
-
-    ns.print("=== MODE LIQUIDATION OPTIMISÉE ACTIVÉ ===");
-    ns.print("Vente au meilleur taux (Forecast flip). Pas de nouveaux achats.");
-
-    // Récapitulatif à l'arrêt
-    ns.atExit(() => {
-        ns.tprint(`[STOCK] Fin de liquidation. PnL réalisé cette session : $${ns.format.number(totalPnl, 2)}`);
-    });
+    ns.print("=== LIQUIDATION — vente au meilleur taux ===");
 
     while (true) {
+        // Nombre de positions encore ouvertes ce cycle
         let holdings = 0;
-        let loopPnl = 0;
+        // Profit/perte réalisé pendant ce seul cycle (pour le log de fin de boucle)
+        let loopPnl  = 0;
 
-        // On parcourt tous les symboles pour gérer les positions existantes
         for (const sym of symbols) {
-            const pos = ns.stock.getPosition(sym);
-            const longShares = pos[0];
-            const longAvg = pos[1];
-            const shortShares = pos[2];
-            const shortAvg = pos[3];
+            // getPosition retourne [longShares, longAvgPrice, shortShares, shortAvgPrice]
+            const [longShares, longAvg, shortShares, shortAvg] = ns.stock.getPosition(sym);
 
-            // Si on ne détient rien sur ce titre, on passe
+            // Aucune position sur ce titre : on passe au suivant
             if (longShares === 0 && shortShares === 0) continue;
+            holdings++;
 
-            holdings++; // On compte le nombre de positions actives
+            // forecast ∈ [0, 1] : probabilité que le prix monte au prochain tick
             const forecast = ns.stock.getForecast(sym);
 
-            // --- Gestion LONG ---
-            if (longShares > 0) {
-                // On garde tant que c'est >= 0.5 (tendance haussière ou neutre)
-                // On vend si < 0.5 (tendance baissière)
-                if (forecast < LONG_EXIT_THRESHOLD) {
-                    const sellPrice = ns.stock.sellStock(sym, longShares);
-                    if (sellPrice > 0) {
-                        const profit = (sellPrice * longShares) - (longAvg * longShares) - (2 * COMMISSION);
-                        loopPnl += profit;
-                        totalPnl += profit;
-                        logTransaction(ns, "SELL LONG", sym, longShares, profit);
-                    }
-                } else {
-                    // Optionnel : Afficher qu'on garde pour maximiser le gain
-                    // ns.print(`HOLD LONG ${sym} (${ns.format.number(longShares)}) - Forecast: ${forecast.toFixed(3)}`);
+            // --- Position LONG ---
+            // On vend dès que la tendance passe baissière (forecast < 50 %)
+            // pour éviter de perdre des gains accumulés
+            if (longShares > 0 && forecast < LONG_EXIT) {
+                const price = ns.stock.sellStock(sym, longShares);
+                if (price > 0) {
+                    // Profit = (prix de vente − prix d'achat moyen) × quantité − commissions
+                    const pnl = (price - longAvg) * longShares - 2 * COMMISSION;
+                    loopPnl += pnl; totalPnl += pnl;
+                    ns.print(`SELL LONG  ${sym} | ${ns.format.number(longShares)} | PnL $${ns.format.number(pnl, 2)}`);
                 }
             }
 
-            // --- Gestion SHORT ---
-            if (shortShares > 0) {
-                // On garde tant que c'est <= 0.5 (tendance baissière ou neutre)
-                // On ferme si > 0.5 (tendance haussière)
-                if (forecast > SHORT_EXIT_THRESHOLD) {
-                    const sellPrice = ns.stock.sellShort(sym, shortShares);
-                    if (sellPrice > 0) {
-                        const profit = (shortAvg * shortShares) - (sellPrice * shortShares) - (2 * COMMISSION);
-                        loopPnl += profit;
-                        totalPnl += profit;
-                        logTransaction(ns, "CLOSE SHORT", sym, shortShares, profit);
-                    }
+            // --- Position SHORT ---
+            // On ferme dès que la tendance redevient haussière (forecast > 50 %)
+            // car un short perd de la valeur quand le prix monte
+            if (shortShares > 0 && forecast > SHORT_EXIT) {
+                const price = ns.stock.sellShort(sym, shortShares);
+                if (price > 0) {
+                    // Profit = (prix d'ouverture du short − prix de clôture) × quantité − commissions
+                    const pnl = (shortAvg - price) * shortShares - 2 * COMMISSION;
+                    loopPnl += pnl; totalPnl += pnl;
+                    ns.print(`CLOSE SHORT ${sym} | ${ns.format.number(shortShares)} | PnL $${ns.format.number(pnl, 2)}`);
                 }
             }
         }
 
-        // Si aucune position n'a été trouvée dans la boucle, on a fini.
+        // Plus aucune position ouverte : la liquidation est terminée, on quitte
         if (holdings === 0) {
-            ns.tprint("SUCCESS: Toutes les positions ont été liquidées au meilleur taux.");
-            return; // Fin du script
+            ns.tprint(`SUCCESS Liquidation terminée. PnL total : $${ns.format.number(totalPnl, 2)}`);
+            return;
         }
 
-        if (loopPnl !== 0) {
-            ns.print(`[PNL] Boucle: $${ns.format.number(loopPnl, 2)} | Total: $${ns.format.number(totalPnl, 2)}`);
-        }
+        // Affiche le bilan du cycle uniquement si des ventes ont eu lieu
+        if (loopPnl !== 0)
+            ns.print(`[PNL] Boucle $${ns.format.number(loopPnl, 2)} | Total $${ns.format.number(totalPnl, 2)}`);
 
         await ns.sleep(SLEEP_TIME);
-    }
-}
-
-/**
- * Helper pour l'affichage des logs
- */
-function logTransaction(ns, type, sym, shares, profit) {
-    const color = profit >= 0 ? "INFO" : "WARN";
-    ns.print(`${type} ${sym} | Qté: ${ns.format.number(shares)} | PnL: $${ns.format.number(profit, 2)}`);
-    if (profit > 0) {
-        ns.toast(`${type} ${sym}: +$${ns.format.number(profit, 2)}`, "success", 4000);
     }
 }
