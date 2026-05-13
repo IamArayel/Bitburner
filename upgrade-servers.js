@@ -6,7 +6,7 @@ export async function main(ns) {
 	ns.disableLog("ALL");
 
 	var notAllServersMaxed = true;
-	const ramLimit = ns.getPurchasedServerMaxRam();
+	const ramLimit = ns.cloud.getRamLimit();
 	var maxPurchaseableRam = ns.getServerMaxRam("home") / 2;  // we would not buy less than half home RAM
 	if (maxPurchaseableRam > ramLimit) {
 		maxPurchaseableRam = ramLimit;
@@ -14,20 +14,20 @@ export async function main(ns) {
 	ns.print("Initial RAM tier: " + maxPurchaseableRam + " GB");
 	while (notAllServersMaxed) {
 		var homeMoney = ns.getServerMoneyAvailable("home");
-		var ownedServers = ns.getPurchasedServers();
+		var ownedServers = ns.cloud.getServerNames();
 		ownedServers.sort((a, b) => ns.getServerMaxRam(b) - ns.getServerMaxRam(a));
 		if (ownedServers.length > 0) {
 			// never buy for less than we already have
 			maxPurchaseableRam = Math.max(maxPurchaseableRam, ns.getServerMaxRam(ownedServers[0]));
 		}
 
-		var ramUpgradeCost = ns.getPurchasedServerCost(maxPurchaseableRam);
+		var ramUpgradeCost = ns.cloud.getServerCost(maxPurchaseableRam);
 
 		// see if we can afford a higher RAM tier than we already have
 		while (maxPurchaseableRam < ramLimit) {
 			// check for quadruple RAM for not too big jumps and buffer for another potential double RAM afterwards below
 			var nextRamTier = maxPurchaseableRam * 4;
-			var nextRamTierCost = ns.getPurchasedServerCost(nextRamTier);
+			var nextRamTierCost = ns.cloud.getServerCost(nextRamTier);
 			if (homeMoney > nextRamTierCost) {
 				// double RAM
 				maxPurchaseableRam *= 2;
@@ -45,7 +45,7 @@ export async function main(ns) {
 				// - reduce the impact of killing running threads by having the last 5 servers with 1/4 RAM
 				// 		and "baiting" threads to the high RAM servers so that the last small ones have low utilization. 
 				maxPurchaseableRam *= 2
-				ramUpgradeCost = ns.getPurchasedServerCost(maxPurchaseableRam);
+				ramUpgradeCost = ns.cloud.getServerCost(maxPurchaseableRam);
 			}
 
 			// ns.print("money: " + Math.round(homeMoney / 1000000) + "m cost: " + Math.round(ramUpgradeCost / 1000000) + " m")
@@ -60,7 +60,7 @@ export async function main(ns) {
 
 		//ns.tprint(ownedServers);
 		//ns.print("maxPurchaseableRam: " + maxPurchaseableRam)
-		//ns.print("RamCost: " + ns.getPurchasedServerCost(maxPurchaseableRam))
+		//ns.print("RamCost: " + ns.cloud.getServerCost(maxPurchaseableRam))
 
 		while (ownedServers.length > 0 && homeMoney > ramUpgradeCost) {
 			var upgradeServer = ownedServers.pop();
@@ -85,7 +85,7 @@ export async function main(ns) {
 						// - reduce the impact of killing running threads by having the last servers with lower RAM
 						// 		and "baiting" threads to the high RAM servers so that the last small ones have low utilization. 
 						maxPurchaseableRam *= 2;
-						ramUpgradeCost = ns.getPurchasedServerCost(maxPurchaseableRam);
+						ramUpgradeCost = ns.cloud.getServerCost(maxPurchaseableRam);
 						ns.print("Double RAM tier: " + maxPurchaseableRam + " GB");
 						if (homeMoney > ramUpgradeCost) {
 							// we should switch to a higher RAM tier but cannot afford it. Wait for more money.
@@ -93,12 +93,17 @@ export async function main(ns) {
 						}
 					}
 				}
-				ns.print("Upgrade server " + upgradeServer + " RAM from " + upgradeServerRAM + " to " + maxPurchaseableRam + " for " + Math.round(ramUpgradeCost / 1000000) + " m");
-				ns.killall(upgradeServer);
-				ns.deleteServer(upgradeServer);
-				ns.purchaseServer(upgradeServer, maxPurchaseableRam);
-				homeMoney = ns.getServerMoneyAvailable("home");
-
+				// Use the new upgrade function instead of delete and repurchase
+				var upgradeCost = ns.cloud.getUpgradeCost(upgradeServer, maxPurchaseableRam);
+				if (homeMoney > upgradeCost) {
+					ns.print("Upgrade server " + upgradeServer + " RAM from " + upgradeServerRAM + " to " + maxPurchaseableRam + " for " + Math.round(upgradeCost / 1000000) + " m");
+					ns.killall(upgradeServer);
+					ns.cloud.upgradeServer(upgradeServer, maxPurchaseableRam);
+					homeMoney = ns.getServerMoneyAvailable("home");
+				} else {
+					// Cannot afford to upgrade this server, and since sorted by RAM descending, later servers have more RAM, so stop
+					break;
+				}
 			}
 
 		}
