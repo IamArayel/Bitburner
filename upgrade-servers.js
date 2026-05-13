@@ -37,7 +37,7 @@ export async function main(ns) {
 			}
 		}
 
-		while (ownedServers.length < ns.getPurchasedServerLimit() && homeMoney > ramUpgradeCost) {
+		while (ownedServers.length < ns.cloud.getServerLimit() && homeMoney > ramUpgradeCost) {
 			if ((ownedServers.length == 7 || ownedServers.length == 14 || ownedServers.length == 21) && maxPurchaseableRam * 2 < ramLimit) {
 				// switch to a higher RAM tier after 10 servers, so we got the second 10 at 50% and the last 5 at 25%
 				// - make a substantial impact (the increase would be < 10%)
