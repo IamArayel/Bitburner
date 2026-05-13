@@ -50,7 +50,7 @@ export async function main(ns) {
 
 			// ns.print("money: " + Math.round(homeMoney / 1000000) + "m cost: " + Math.round(ramUpgradeCost / 1000000) + " m")
 			if (homeMoney > ramUpgradeCost) {
-				const newServer = ns.purchaseServer("pserv-" + ownedServers.length, maxPurchaseableRam);
+				const newServer = ns.cloud.purchaseServer("pserv-" + ownedServers.length, maxPurchaseableRam);
 				ownedServers.push(newServer);
 				homeMoney = ns.getServerMoneyAvailable("home");
 				ns.print("Purchased Server " + newServer + " with " + maxPurchaseableRam + " RAM for " + Math.round(ramUpgradeCost / 1000000) + " m");
@@ -94,7 +94,7 @@ export async function main(ns) {
 					}
 				}
 				// Use the new upgrade function instead of delete and repurchase
-				var upgradeCost = ns.cloud.getUpgradeCost(upgradeServer, maxPurchaseableRam);
+				var upgradeCost = ns.cloud.getServerUpgradeCost(upgradeServer, maxPurchaseableRam);
 				if (homeMoney > upgradeCost) {
 					ns.print("Upgrade server " + upgradeServer + " RAM from " + upgradeServerRAM + " to " + maxPurchaseableRam + " for " + Math.round(upgradeCost / 1000000) + " m");
 					ns.killall(upgradeServer);
