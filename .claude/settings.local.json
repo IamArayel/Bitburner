@@ -10,7 +10,8 @@
       "Bash(Select-Object FullName)",
       "Bash(Sort-Object FullName)",
       "WebFetch(domain:api.github.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(gh api *)"
     ]
   }
 }
