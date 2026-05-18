@@ -7,6 +7,8 @@
  *
  * Lancer depuis home : run darknet-crawler.js [--tail]
  * Le script se copie lui-même sur chaque serveur darknet découvert.
+ * 
+ * Copier le script dans darkweb : scp darknet-crawler.js darkweb
  *
  * Mots de passe sauvegardés dans : darknet-passwords.json
  * (synchronisé vers home après chaque découverte)
