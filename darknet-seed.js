@@ -56,8 +56,39 @@ async function handle(ns, target) {
 function getPassword(ns, target, d) {
   const db = loadPasswords(ns);
   if (db[target] !== undefined) return db[target];
-  if (d.modelId === "ZeroLogon") return "";
-  return null;
+
+  const hint = d.passwordHintData ?? d.passwordHint ?? "";
+
+  switch (d.modelId) {
+    case "ZeroLogon":   return "";
+    case "CloudBlare(tm)": return hint.split("").filter(c => /\d/.test(c)).join("");
+    case "BellaCuore":  return String(decodeRoman(hint.trim()) ?? "");
+    case "110100100":   return hint.trim().split(/\s+/).map(b => String.fromCharCode(parseInt(b, 2))).join("");
+    case "MathML":      return String(evalArithmetic(hint) ?? "");
+    case "OrdoXenos": {
+      const [enc, mask] = hint.split(";");
+      if (!enc || !mask) return null;
+      return enc.split("").map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ parseInt(mask[i] ?? "0", 2))).join("");
+    }
+    case "OctantVoxel": {
+      const [baseStr, encoded] = hint.split(",");
+      const base = parseInt(baseStr);
+      return base >= 2 && base <= 36 ? String(parseInt(encoded, base)) : null;
+    }
+    default: return null;
+  }
+}
+
+function decodeRoman(s) {
+  const V = { I:1, V:5, X:10, L:50, C:100, D:500, M:1000 };
+  let t = 0, p = 0;
+  for (const c of [...s.toUpperCase()].reverse()) { const v = V[c]??0; t += v<p?-v:v; p=v; }
+  return t || null;
+}
+
+function evalArithmetic(expr) {
+  if (!/^[\d\s+\-*/().]+$/.test(expr)) return null;
+  try { return Function(`"use strict";return(${expr})`)(); } catch { return null; }
 }
 
 /** Copie les scripts et lance le crawler (ou le seed si pas assez de RAM).

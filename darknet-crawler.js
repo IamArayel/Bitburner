@@ -7,14 +7,11 @@
  *
  * Lancer depuis home : run darknet-crawler.js [--tail]
  * Le script se copie lui-même sur chaque serveur darknet découvert.
- * 
- * Copier le script dans darkweb : scp darknet-crawler.js darkweb
+ *
+ * Copier vers darkweb : scp darknet-crawler.js darkweb
  *
  * Mots de passe sauvegardés dans : darknet-passwords.json
  * (synchronisé vers home après chaque découverte)
- *
- * Pour ajouter un nouveau type de serveur : ajouter un case dans solve()
- * avec le modelId trouvé dans les logs.
  */
 
 const SCRIPT  = "darknet-crawler.js";
@@ -30,7 +27,6 @@ export async function main(ns) {
   ns.disableLog("ALL");
   if (ns.getHostname() === "home") {
     ns.ui.openTail();
-    // Initialiser le fichier de mots de passe s'il n'existe pas encore
     if (!ns.read(PW_FILE)) ns.write(PW_FILE, "{}", "w");
   }
 
@@ -69,13 +65,11 @@ async function handleServer(ns, target) {
     return;
   }
 
-  // Session déjà active → propager directement
   if (details.hasSession) {
     await spreadTo(ns, target);
     return;
   }
 
-  // Tenter avec un mot de passe mémorisé
   const db = loadPasswords(ns);
   if (db[target] !== undefined) {
     ns.print(`[TRY]  ${target} — mot de passe mémorisé : "${db[target]}"`);
@@ -85,13 +79,11 @@ async function handleServer(ns, target) {
       await spreadTo(ns, target);
       return;
     }
-    // Serveur probablement redémarré → supprimer le vieux mot de passe
     ns.print(`[STALE] Mot de passe expiré pour ${target}, nouvelle tentative de crack`);
     delete db[target];
     ns.write(PW_FILE, JSON.stringify(db, null, 2), "w");
   }
 
-  // Chercher le mot de passe
   const password = await solve(ns, target, details);
   if (password !== null) {
     ns.print(`[AUTH✓] ${target} — mot de passe trouvé : "${password}"`);
@@ -104,52 +96,401 @@ async function handleServer(ns, target) {
 
 // ─── Résolution de mot de passe ───────────────────────────────────────────
 
+/** Extrait le texte du message d'une réponse authenticate. */
+const rmsg = (r) => r?.message ?? r?.feedback ?? r?.log ?? "";
+
 /**
- * Tente de trouver le mot de passe selon le modelId du serveur.
- * Retourne le mot de passe si trouvé, null sinon.
  * @param {NS} ns
  * @param {string} target
  * @param {object} details
  * @returns {Promise<string|null>}
  */
 async function solve(ns, target, details) {
-  ns.print(`[SOLVE] ${target}  modèle="${details.modelId}"  hint="${details.passwordHint}"`);
+  const hint     = details.passwordHint     ?? "";
+  const hintData = details.passwordHintData ?? details.passwordHint ?? "";
+  ns.print(`[SOLVE] ${target}  modèle="${details.modelId}"  hint="${hint}"`);
 
   switch (details.modelId) {
 
+    // ── Mot de passe vide ─────────────────────────────────────────────────
     case "ZeroLogon": {
-      // Mot de passe toujours vide
       const r = await ns.dnet.authenticate(target, "");
       return r.success ? "" : null;
     }
 
-    // ── Ajoutez vos cases ici au fil des découvertes ──────────────────────
-    //
-    // Exemple : si vous voyez modelId="HintIsPassword" avec hint="h4ck3r"
-    // case "HintIsPassword": {
-    //   const r = await ns.dnet.authenticate(target, details.passwordHint);
-    //   return r.success ? details.passwordHint : null;
-    // }
-    //
-    // Exemple : brute-force numérique 4 chiffres
-    // case "PIN4": {
-    //   for (let i = 0; i <= 9999; i++) {
-    //     const pin = String(i).padStart(4, "0");
-    //     const r = await ns.dnet.authenticate(target, pin);
-    //     if (r.success) return pin;
-    //   }
-    //   return null;
-    // }
-    //
-    // ─────────────────────────────────────────────────────────────────────
+    // ── Mot de passe par défaut (4 mots) ──────────────────────────────────
+    case "FreshInstall_1.0": {
+      for (const pw of ["admin", "password", "0000", "12345"]) {
+        const r = await ns.dnet.authenticate(target, pw);
+        if (r.success) return pw;
+      }
+      return null;
+    }
 
+    // ── Echo de vulnérabilité : le mot de passe est dans le message d'erreur
+    case "DeskMemo_3.1": {
+      const r = await ns.dnet.authenticate(target, "probe");
+      if (r.success) return "probe";
+      const msg = rmsg(r);
+      ns.print(`[ECHO] Réponse : ${msg}`);
+      // Cherche un pattern "passcode/password: X" ou "is X"
+      const m = msg.match(/(?:passcode|password|pass|code)[:\s]+["']?(\S+?)["']?(?:\s|$)/i)
+             ?? msg.match(/\bis\s+["']?(\S+?)["']?\s*$/i);
+      if (m) {
+        const pw = m[1].replace(/[^a-zA-Z0-9]/g, "");
+        const r2 = await ns.dnet.authenticate(target, pw);
+        if (r2.success) return pw;
+      }
+      // Essayer aussi heartbleed
+      try {
+        const hb = await ns.dnet.heartbleed(target, { peek: true });
+        const logs = (hb?.logs ?? []).join("\n");
+        const m2 = logs.match(/(?:passcode|password|pass|code)[:\s]+["']?(\S+?)["']?(?:\s|$)/i);
+        if (m2) {
+          const pw = m2[1].replace(/[^a-zA-Z0-9]/g, "");
+          const r3 = await ns.dnet.authenticate(target, pw);
+          if (r3.success) return pw;
+        }
+      } catch {}
+      return null;
+    }
+
+    // ── Captcha : chiffres noyés dans des caractères parasites ────────────
+    case "CloudBlare(tm)": {
+      const pw = hintData.split("").filter(c => /\d/.test(c)).join("");
+      ns.print(`[CAPTCHA] Chiffres extraits : "${pw}"`);
+      const r = await ns.dnet.authenticate(target, pw);
+      return r.success ? pw : null;
+    }
+
+    // ── Noms de chien (4 possibilités) ────────────────────────────────────
+    case "Laika4": {
+      for (const pw of ["fido", "spot", "rover", "max"]) {
+        const r = await ns.dnet.authenticate(target, pw);
+        if (r.success) return pw;
+      }
+      return null;
+    }
+
+    // ── Chiffre romain dans le hint ───────────────────────────────────────
+    case "BellaCuore": {
+      const num = decodeRoman(hintData.trim());
+      if (num === null) { ns.print(`[ROMAN] Échec décodage : "${hintData}"`); return null; }
+      ns.print(`[ROMAN] ${hintData} = ${num}`);
+      const r = await ns.dnet.authenticate(target, String(num));
+      return r.success ? String(num) : null;
+    }
+
+    // ── Recherche binaire Higher/Lower ────────────────────────────────────
+    case "AccountsManager_4.2": {
+      let lo = 0, hi = 10_000_000_000;
+      for (let iter = 0; iter < 64 && lo <= hi; iter++) {
+        const mid = Math.floor((lo + hi) / 2);
+        const r = await ns.dnet.authenticate(target, String(mid));
+        if (r.success) return String(mid);
+        const msg = rmsg(r).toLowerCase();
+        if (msg.includes("higher") || msg.includes("plus")) lo = mid + 1;
+        else hi = mid - 1;
+      }
+      return null;
+    }
+
+    // ── Dictionnaire commun (~100 mots) ───────────────────────────────────
+    case "TopPass": {
+      const dict = ["123456","password","12345678","qwerty","123456789","12345","1234","111111",
+        "1234567","dragon","123123","baseball","abc123","football","monkey","letmein","696969",
+        "shadow","master","666666","qwertyuiop","123321","mustang","1234567890","michael","654321",
+        "superman","1qaz2wsx","7777777","121212","0","qazwsx","123qwe","trustno1","jordan",
+        "jennifer","zxcvbnm","asdfgh","hunter","buster","soccer","harley","batman","andrew",
+        "tigger","sunshine","iloveyou","2000","charlie","robert","thomas","hockey","ranger",
+        "daniel","starwars","112233","george","computer","michelle","jessica","pepper","1111",
+        "zxcvbn","555555","11111111","131313","freedom","777777","pass","maggie","159753",
+        "aaaaaa","ginger","princess","joshua","cheese","amanda","summer","love","ashley","6969",
+        "nicole","chelsea","biteme","matthew","access","yankees","987654321","dallas","austin",
+        "thunder","taylor","matrix"];
+      for (const pw of dict) {
+        const r = await ns.dnet.authenticate(target, pw);
+        if (r.success) return pw;
+      }
+      return null;
+    }
+
+    // ── Pays de l'UE (27) ─────────────────────────────────────────────────
+    case "EuroZone Free": {
+      const countries = ["Austria","Belgium","Bulgaria","Croatia","Republic of Cyprus",
+        "Czech Republic","Denmark","Estonia","Finland","France","Germany","Greece","Hungary",
+        "Ireland","Italy","Latvia","Lithuania","Luxembourg","Malta","Netherlands","Poland",
+        "Portugal","Romania","Slovakia","Slovenia","Spain","Sweden"];
+      for (const pw of countries) {
+        const r = await ns.dnet.authenticate(target, pw);
+        if (r.success) return pw;
+      }
+      return null;
+    }
+
+    // ── Binaire 8 bits séparés par espaces ────────────────────────────────
+    case "110100100": {
+      const pw = hintData.trim().split(/\s+/).map(b => String.fromCharCode(parseInt(b, 2))).join("");
+      ns.print(`[BINARY] Décodé : "${pw}"`);
+      const r = await ns.dnet.authenticate(target, pw);
+      return r.success ? pw : null;
+    }
+
+    // ── Conversion base N → base 10 ───────────────────────────────────────
+    case "OctantVoxel": {
+      const [baseStr, encoded] = hintData.split(",");
+      const base = parseFloat(baseStr);
+      let pw;
+      if (Number.isInteger(base) && base >= 2 && base <= 36) {
+        pw = String(parseInt(encoded, base));
+      } else {
+        pw = String(convertFromFractionalBase(encoded, base));
+      }
+      ns.print(`[BASE${base}] ${encoded} → "${pw}"`);
+      const r = await ns.dnet.authenticate(target, pw);
+      return r.success ? pw : null;
+    }
+
+    // ── Évaluation d'expression arithmétique ──────────────────────────────
+    case "MathML": {
+      const result = evalArithmetic(hintData);
+      if (result === null) { ns.print(`[MATH] Impossible d'évaluer : "${hintData}"`); return null; }
+      ns.print(`[MATH] ${hintData} = ${result}`);
+      const r = await ns.dnet.authenticate(target, String(result));
+      return r.success ? String(result) : null;
+    }
+
+    // ── Déchiffrement XOR ─────────────────────────────────────────────────
+    case "OrdoXenos": {
+      const [encrypted, mask] = hintData.split(";");
+      if (!encrypted || !mask) { ns.print(`[XOR] Format invalide : "${hintData}"`); return null; }
+      const pw = encrypted.split("").map((c, i) =>
+        String.fromCharCode(c.charCodeAt(0) ^ parseInt(mask[i] ?? "0", 2))
+      ).join("");
+      ns.print(`[XOR] Déchiffré : "${pw}"`);
+      const r = await ns.dnet.authenticate(target, pw);
+      return r.success ? pw : null;
+    }
+
+    // ── Plus grand facteur premier ────────────────────────────────────────
+    case "PrimeTime 2": {
+      const num = parseInt(hintData.replace(/[^0-9]/g, ""));
+      if (!num) return null;
+      const pw = String(largestPrimeFactor(num));
+      ns.print(`[PRIME] Facteur(${num}) = ${pw}`);
+      const r = await ns.dnet.authenticate(target, pw);
+      return r.success ? pw : null;
+    }
+
+    // ── Packet sniffer : mot de passe dans les logs heartbleed ────────────
+    case "OpenWebAccessPoint": {
+      // Attendre que les logs se remplissent (le serveur génère du trafic)
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const hb = await ns.dnet.heartbleed(target, { peek: true });
+          const logs = (hb?.logs ?? []).join("\n");
+          ns.print(`[PACKET] Logs (tentative ${attempt + 1}):\n${logs.slice(-400)}`);
+          const m = logs.match(/passcode[:\s]+(\S+)/i)
+                 ?? logs.match(/password[:\s]+(\S+)/i)
+                 ?? logs.match(/Logging in with passcode[:\s:]+(\S+)/i);
+          if (m) {
+            const pw = m[1].replace(/[^\w]/g, "");
+            const r = await ns.dnet.authenticate(target, pw);
+            if (r.success) return pw;
+          }
+        } catch {}
+        await ns.sleep(3_000);
+      }
+      return null;
+    }
+
+    // ── Buffer overflow : dépasser la longueur du buffer ──────────────────
+    case "Pr0verFl0": {
+      const pwLen = details.passwordLength ?? 8;
+      // La chaîne doit être > longueur du password pour écraser le buffer
+      for (let len = pwLen + 1; len <= pwLen + 12; len++) {
+        const candidate = "A".repeat(len);
+        const r = await ns.dnet.authenticate(target, candidate);
+        if (r.success) return candidate;
+      }
+      return null;
+    }
+
+    // ── Feedback piment 🌶️ : un piment par position correcte ──────────────
+    case "RateMyPix.Auth": {
+      const CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const peppers = (msg) => (msg.match(/🌶️/g) ?? []).length;
+
+      // Sonder la longueur
+      let length = details.passwordLength ?? 0;
+      if (!length) {
+        for (let l = 1; l <= 12; l++) {
+          const r = await ns.dnet.authenticate(target, CHARS[0].repeat(l));
+          if (r.success) return CHARS[0].repeat(l);
+          if (peppers(rmsg(r)) <= l) { length = l; break; }
+        }
+        if (!length) length = 6;
+      }
+
+      const pw = new Array(length).fill(CHARS[0]);
+      let locked = 0;
+      for (let pos = 0; pos < length; pos++) {
+        for (const c of CHARS) {
+          pw[pos] = c;
+          const r = await ns.dnet.authenticate(target, pw.join(""));
+          if (r.success) return pw.join("");
+          if (peppers(rmsg(r)) > locked) { locked++; break; }
+        }
+      }
+      return null;
+    }
+
+    // ── Timing attack : index du premier caractère incorrect ──────────────
+    case "2G_cellular": {
+      const CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const mismatchIdx = (msg) => { const m = msg.match(/\b(\d+)\b/); return m ? +m[1] : -1; };
+      const length = details.passwordLength ?? 8;
+      const pw = [];
+
+      for (let pos = 0; pos < length; pos++) {
+        let found = false;
+        for (const c of CHARS) {
+          const guess = pw.join("") + c + CHARS[0].repeat(length - pos - 1);
+          const r = await ns.dnet.authenticate(target, guess);
+          if (r.success) return guess;
+          if (mismatchIdx(rmsg(r)) > pos) { pw.push(c); found = true; break; }
+        }
+        if (!found) break;
+      }
+      if (pw.length === length) {
+        const r = await ns.dnet.authenticate(target, pw.join(""));
+        if (r.success) return pw.join("");
+      }
+      return null;
+    }
+
+    // ── Mastermind : correct (bonne pos) + close (mauvais pos) ────────────
+    case "DeepGreen": {
+      const CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
+      const parseFb = (msg) => ({
+        correct: +(msg.match(/(\d+)\s*correct/i)?.[1] ?? 0),
+        close:   +(msg.match(/(\d+)\s*close/i)?.[1]   ?? 0),
+      });
+
+      const length = details.passwordLength ?? 6;
+      const pw = Array.from({ length }, () => CHARS[0]);
+
+      // Déterminer chaque caractère par élimination (simpliste mais fonctionnel)
+      for (let pos = 0; pos < length; pos++) {
+        for (const c of CHARS) {
+          pw[pos] = c;
+          const r = await ns.dnet.authenticate(target, pw.join(""));
+          if (r.success) return pw.join("");
+          const { correct } = parseFb(rmsg(r));
+          if (correct > pos) break; // ce caractère à cette position est correct
+        }
+      }
+      return null;
+    }
+
+    // ── Hint trié + déviation RMS ─────────────────────────────────────────
+    case "PHP 5.4": {
+      const sorted = hintData.trim().split("").sort().join("");
+      const isNum  = /^\d+$/.test(sorted);
+      ns.print(`[PHP5.4] Caractères triés : "${sorted}" (numérique: ${isNum})`);
+
+      if (isNum && sorted.length <= 8) {
+        // Permutations de chiffres (limité à 8 pour éviter explosion)
+        const getRms = (msg) => { const m = msg.match(/([\d.]+)/); return m ? +m[1] : Infinity; };
+        let bestPw = null, bestRms = Infinity;
+
+        for (const perm of permutations([...sorted])) {
+          const candidate = perm.join("");
+          const r = await ns.dnet.authenticate(target, candidate);
+          if (r.success) return candidate;
+          const rms = getRms(rmsg(r));
+          if (rms < bestRms) { bestRms = rms; bestPw = candidate; }
+          if (rms === 0) return candidate;
+        }
+        ns.print(`[PHP5.4] Meilleure tentative : "${bestPw}" (RMS ${bestRms})`);
+      }
+      return null;
+    }
+
+    // ── Divisibilité : le mot de passe divise lui-même evenly ─────────────
+    case "Factori-Os": {
+      try {
+        const hb = await ns.dnet.heartbleed(target, { peek: true });
+        const logs = (hb?.logs ?? []).join("\n");
+        ns.print(`[FACTORI] Logs : ${logs.slice(-300)}`);
+        const matches = [...new Set(logs.match(/\b(\d{5,})\b/g) ?? [])];
+        for (const candidate of matches) {
+          const r = await ns.dnet.authenticate(target, candidate);
+          if (r.success) return candidate;
+        }
+      } catch {}
+      return null;
+    }
+
+    // ── Triple modulo — CRT (complexe, stub) ─────────────────────────────
+    case "BigMo%od": {
+      ns.print(`[BIGMO] Hint : "${hint}" — solveur CRT pas encore implémenté.`);
+      try {
+        const hb = await ns.dnet.heartbleed(target, { peek: true });
+        if (hb?.logs?.length) hb.logs.slice(-5).forEach(l => ns.print(`  ${l}`));
+      } catch {}
+      return null;
+    }
+
+    // ── Maximum global : recherche ternaire sur score d'altitude ──────────
+    case "KingOfTheHill": {
+      const getAlt  = (msg) => { const m = msg.match(/([\d.]+)/); return m ? +m[1] : 0; };
+      const length  = details.passwordLength ?? 6;
+      let lo = 0, hi = 10 ** length - 1;
+
+      for (let i = 0; i < 120 && hi - lo > 1; i++) {
+        const m1 = Math.floor(lo + (hi - lo) / 3);
+        const m2 = Math.floor(hi - (hi - lo) / 3);
+        const r1 = await ns.dnet.authenticate(target, String(m1));
+        if (r1.success) return String(m1);
+        const r2 = await ns.dnet.authenticate(target, String(m2));
+        if (r2.success) return String(m2);
+        if (getAlt(rmsg(r1)) >= getAlt(rmsg(r2))) hi = m2; else lo = m1;
+      }
+      return null;
+    }
+
+    // ── Feedback oui/non par position ─────────────────────────────────────
+    case "NIL": {
+      const CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const isYes = (fb, pos) => (fb.split(",")[pos] ?? "").trim() === "yes";
+      const length = details.passwordLength ?? 6;
+      const pw = new Array(length).fill(CHARS[0]);
+
+      for (let pos = 0; pos < length; pos++) {
+        for (const c of CHARS) {
+          pw[pos] = c;
+          const r = await ns.dnet.authenticate(target, pw.join(""));
+          if (r.success) return pw.join("");
+          if (isYes(rmsg(r), pos)) break;
+        }
+      }
+      return null;
+    }
+
+    // ── Labyrinthe — nécessite navigation interactive ─────────────────────
+    case "(The Labyrinth)": {
+      ns.print(`[LABYRINTHE] Ce modèle nécessite une navigation interactive de labyrinthe.`);
+      ns.print(`    Utilisez dnet.labreport() / dnet.labradar() pour naviguer manuellement.`);
+      return null;
+    }
+
+    // ─── Modèle inconnu ──────────────────────────────────────────────────
     default: {
       ns.print(`[?] Modèle non supporté : "${details.modelId}"`);
-      ns.print(`    Hint : ${details.passwordHint}`);
-      ns.print(`    → Ajoutez un case dans solve() une fois le mécanisme compris`);
-
-      // Heartbleed : lire les logs du serveur pour des indices
-      // (peut révéler des mots de passe d'autres serveurs en clair !)
+      ns.print(`    Hint : ${hint}`);
+      ns.print(`    HintData : ${hintData}`);
+      ns.print(`    → Signalez ce modelId pour qu'un case soit ajouté dans solve()`);
       try {
         const hb = await ns.dnet.heartbleed(target, { peek: true });
         if (hb?.logs?.length) {
@@ -157,27 +498,61 @@ async function solve(ns, target, details) {
           hb.logs.slice(-8).forEach(l => ns.print(`  ${l}`));
         }
       } catch {}
-
       return null;
     }
   }
 }
 
+// ─── Fonctions utilitaires ────────────────────────────────────────────────
+
+/** Décode un chiffre romain vers un entier. */
+function decodeRoman(s) {
+  const V = { I:1, V:5, X:10, L:50, C:100, D:500, M:1000 };
+  let total = 0, prev = 0;
+  for (const c of [...s.toUpperCase()].reverse()) {
+    const v = V[c] ?? 0;
+    total += v < prev ? -v : v;
+    prev = v;
+  }
+  return total || null;
+}
+
+/** Retourne le plus grand facteur premier de n. */
+function largestPrimeFactor(n) {
+  let largest = 1;
+  for (let d = 2; d * d <= n; d++) {
+    while (n % d === 0) { largest = d; n /= d; }
+  }
+  return n > 1 ? n : largest;
+}
+
+/** Évalue une expression arithmétique simple (+ - * / parenthèses). */
+function evalArithmetic(expr) {
+  if (!/^[\d\s+\-*/().]+$/.test(expr)) return null;
+  try { return Function(`"use strict";return(${expr})`)(); } catch { return null; }
+}
+
+/** Convertit un entier encodé en base fractionnaire (ex: 5.5) vers base 10. */
+function convertFromFractionalBase(encoded, base) {
+  const digits = encoded.split("").map(Number);
+  return digits.reduce((acc, d, i) => acc + d * (base ** (digits.length - 1 - i)), 0);
+}
+
+/** Génère toutes les permutations d'un tableau (max longueur 8 recommandé). */
+function* permutations(arr) {
+  if (arr.length <= 1) { yield arr; return; }
+  for (let i = 0; i < arr.length; i++) {
+    const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+    for (const p of permutations(rest)) yield [arr[i], ...p];
+  }
+}
+
 // ─── Propagation ─────────────────────────────────────────────────────────
 
-/**
- * Copie le crawler + la base de mots de passe sur le serveur cible,
- * puis lance le crawler là-bas.
- * @param {NS} ns @param {string} target
- */
+/** @param {NS} ns @param {string} target */
 async function spreadTo(ns, target) {
-  // darkweb = marketplace TOR classique, pas un nœud darknet exploitable
-if (target === "darkweb") {
-    //ns.print(`[SKIP SPREAD] ${target} est le dark web classique, pas un nœud darknet`);
-    return;
-  }
+  if (target === "darkweb") return;
 
-  // Copier les fichiers un par un (le scp en tableau échoue si un fichier est absent)
   const scriptOk = await ns.scp(SCRIPT, target);
   if (!scriptOk) {
     ns.print(`[SPREAD FAIL] Impossible de copier ${SCRIPT} vers ${target}`);
@@ -199,8 +574,6 @@ if (target === "darkweb") {
 async function exploitSelf(ns) {
   const host = ns.getHostname();
 
-  // Stasis link : stabilise ce serveur (empêche déplacement/extinction)
-  // et permet exec à distance depuis home en cas de crash
   try {
     const limit   = ns.dnet.getStasisLinkLimit();
     const stasied = ns.dnet.getStasisLinkedServers();
@@ -210,8 +583,6 @@ async function exploitSelf(ns) {
     }
   } catch {}
 
-  // Libérer la RAM bloquée par le propriétaire original
-  // (révèle souvent des fichiers .cache à la fin)
   try {
     for (let i = 0; i < 50; i++) {
       const freed = await ns.dnet.memoryReallocation();
@@ -219,7 +590,6 @@ async function exploitSelf(ns) {
     }
   } catch {}
 
-  // Ouvrir les fichiers .cache (argent, programmes, clés d'accès bourse...)
   const caches = ns.ls(host, ".cache");
   for (const f of caches) {
     try {
@@ -228,32 +598,23 @@ async function exploitSelf(ns) {
     } catch {}
   }
 
-  // Phishing : argent + XP Charisma (plus efficace avec un haut niveau de charisme)
-  try {
-    await ns.dnet.phishingAttack();
-  } catch {}
+  try { await ns.dnet.phishingAttack(); } catch {}
 }
 
 // ─── Persistance des mots de passe ───────────────────────────────────────
 
 /** @param {NS} ns @returns {Record<string, string>} */
 function loadPasswords(ns) {
-  try {
-    const raw = ns.read(PW_FILE);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
+  try { return JSON.parse(ns.read(PW_FILE) || "{}"); }
+  catch { return {}; }
 }
 
-/**
- * Sauvegarde un mot de passe localement ET synchronise vers home.
- * @param {NS} ns @param {string} host @param {string} password
- */
+/** @param {NS} ns @param {string} host @param {string} password */
 function savePassword(ns, host, password) {
   const db = loadPasswords(ns);
   db[host] = password;
-  const json = JSON.stringify(db, null, 2);
-  ns.write(PW_FILE, json, "w");
-  try { ns.scp(PW_FILE, "home"); } catch {} // best-effort sync vers home
+  ns.write(PW_FILE, JSON.stringify(db, null, 2), "w");
+  try { ns.scp(PW_FILE, "home"); } catch {}
 }
 
 // ─── Autocomplétion terminal ──────────────────────────────────────────────
