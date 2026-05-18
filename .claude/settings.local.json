@@ -8,7 +8,9 @@
       "Bash(npx bitburner-filesync *)",
       "Bash(Get-ChildItem -Recurse -Include \"*.js\",\"*.ts\" -Exclude node_modules)",
       "Bash(Select-Object FullName)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch"
     ]
   }
 }
