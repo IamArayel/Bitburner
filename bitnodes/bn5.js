@@ -24,7 +24,7 @@ export async function main(ns) {
       // Rejoindre nécessite str/def/dex/agi ≥ 100
       const s = player.skills;
       if (s.strength >= 100 && s.defense >= 100 && s.dexterity >= 100 && s.agility >= 100) {
-        try { ns.bladeburner.joinBladeburnerDivision(); } catch {}
+        try { ns.bladeburner.joinBladeburnerDivision(); } catch(e) { ns.print(`BB join fail: ${e}`); }
       } else {
         // Gym via Singularity si dispo
         if (ns.singularity) {
