@@ -65,16 +65,36 @@ async function tryRoot(ns, host) {
   }
 }
 
+/** Trouve la meilleure cible hackable (exclut home et serveurs achetés). */
+function getBestHackTarget(ns) {
+  const hackLvl = ns.getPlayer().skills.hacking;
+  return ns.scan("home")
+    .flatMap(n => { const q = [n]; const r = []; while(q.length){const c=q.shift();r.push(c);ns.scan(c).forEach(x=>!r.includes(x)&&x!=="home"&&q.push(x));} return r; })
+    .filter(s =>
+      !ns.getServer(s).purchasedByPlayer &&
+      ns.hasRootAccess(s) &&
+      ns.getServerMaxMoney(s) > 0 &&
+      ns.getServerRequiredHackingLevel(s) <= hackLvl / 2
+    )
+    .sort((a, b) =>
+      ns.getServerMaxMoney(b) / ns.getServerMinSecurityLevel(b) -
+      ns.getServerMaxMoney(a) / ns.getServerMinSecurityLevel(a)
+    )[0] ?? "n00dles";
+}
+
 /**
  * Copie hgw.js et le lance avec le serveur comme cible, sans tuer les scripts existants.
  */
 async function deployHgwOn(ns, host, script) {
-  // pas besoin de déployer sur home ici, mais on peut le faire aussi
   await ns.scp(script, host);
 
+  // Serveurs achetés ne peuvent pas se hacker eux-mêmes
+  const isPurchased = ns.getServer(host).purchasedByPlayer;
+  const target = isPurchased ? getBestHackTarget(ns) : host;
+
   // si hgw.js tourne déjà pour cette cible-là, on ne fait rien
-  if (ns.isRunning(script, host, host)) {
-    ns.print(`[RUNNING] ${script} tourne déjà sur ${host} avec cible ${host}.`);
+  if (ns.isRunning(script, host, target)) {
+    ns.print(`[RUNNING] ${script} tourne déjà sur ${host} avec cible ${target}.`);
     return;
   }
 
@@ -96,7 +116,7 @@ async function deployHgwOn(ns, host, script) {
     return;
   }
 
-  const pid = ns.exec(script, host, threads, host);
+  const pid = ns.exec(script, host, threads, target);
   if (pid === 0) {
     ns.print(`[ERR] Échec du lancement de ${script} sur ${host}.`);
   } else {
