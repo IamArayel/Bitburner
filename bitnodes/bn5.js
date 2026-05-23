@@ -13,20 +13,26 @@ export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
 
+  let bbJoinError = "";
+
   while (true) {
     const player = ns.getPlayer();
     const hack = player.skills.hacking;
+    const s = player.skills;
 
     launchCore(ns, 400);
 
     // --- Bladeburner ---
     if (!ns.bladeburner.inBladeburner()) {
-      // Rejoindre nécessite str/def/dex/agi ≥ 100
-      const s = player.skills;
-      if (s.strength >= 100 && s.defense >= 100 && s.dexterity >= 100 && s.agility >= 100) {
-        try { ns.bladeburner.joinBladeburnerDivision(); } catch(e) { ns.print(`BB join fail: ${e}`); }
+      const combatOk = s.strength >= 100 && s.defense >= 100 && s.dexterity >= 100 && s.agility >= 100;
+      if (combatOk) {
+        try {
+          ns.bladeburner.joinBladeburnerDivision();
+          bbJoinError = "";
+        } catch(e) {
+          bbJoinError = String(e);
+        }
       } else {
-        // Gym via Singularity si dispo
         if (ns.singularity) {
           try { ns.singularity.gymWorkout("Powerhouse Gym", "Strength", false); } catch {}
         }
@@ -38,9 +44,8 @@ export async function main(ns) {
     ns.clearLog();
     ns.print("=== BN5 : Artificial Intelligence ===");
     ns.print(`Hack   : ${hack} / 3000`);
+    ns.print(`Intel  : ${s.intelligence} (boost hacking speed)`);
     ns.print(`Money  : $${ns.format.number(player.money)}`);
-
-    const s = player.skills;
     ns.print(`Combat : STR ${s.strength} / DEF ${s.defense} / DEX ${s.dexterity} / AGI ${s.agility}`);
 
     if (ns.bladeburner.inBladeburner()) {
@@ -49,7 +54,17 @@ export async function main(ns) {
       ns.print(`BB Rank  : ${rank.toFixed(0)}`);
       ns.print(`BB Action: ${action.type} — ${action.name}`);
     } else {
-      ns.print(`Bladeburner: Non rejoint (besoin stats ≥ 100)`);
+      const combatOk = s.strength >= 100 && s.defense >= 100 && s.dexterity >= 100 && s.agility >= 100;
+      if (!combatOk) {
+        const missing = ["STR","DEF","DEX","AGI"]
+          .filter((_, i) => [s.strength, s.defense, s.dexterity, s.agility][i] < 100);
+        ns.print(`BB: BLOQUE — stats combat < 100 : ${missing.join(", ")}`);
+      } else if (bbJoinError) {
+        ns.print(`BB: BLOQUE — stats OK mais join échoue :`);
+        ns.print(`  ${bbJoinError}`);
+      } else {
+        ns.print(`BB: tentative de rejoindre...`);
+      }
     }
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
