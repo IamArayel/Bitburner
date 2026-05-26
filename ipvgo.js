@@ -361,9 +361,76 @@ function getAllRankedMoves(board, size, boardHistory) {
   return moves;
 }
 
+// Score tactique rapide sans calcul de territoire (pour trier les réponses adverses)
+function quickScore(board, size, x, y, player) {
+  const opp = player === 'X' ? 'O' : 'X';
+  let s = 0;
+  for (const [nx, ny] of getNeighbors(x, y, size)) {
+    const c = board[nx][ny];
+    if (c === opp) {
+      const g = getGroup(board, size, nx, ny);
+      if (g.liberties.size === 1) s += 500 + g.stones.length * 50; // capture
+      else if (g.liberties.size === 2) s += 30;                     // menace
+    } else if (c === player) {
+      const g = getGroup(board, size, nx, ny);
+      if (g.liberties.size === 1) s += 200 + g.stones.length * 20; // fuite
+    }
+  }
+  return s;
+}
+
+// Top-N coups adverses triés par score tactique, avec plateau simulé pré-calculé
+function topOppMoves(board, size, player, boardHistory, n) {
+  const moves = [];
+  for (let x = 0; x < size; x++) {
+    for (let y = 0; y < size; y++) {
+      if (!isValid(board, size, x, y, player)) continue;
+      if (isTrueEye(board, size, x, y, player)) continue;
+      const after = simulateMove(board, size, x, y, player);
+      if (boardHistory && boardHistory.has(after.join(''))) continue;
+      moves.push({ x, y, score: quickScore(board, size, x, y, player), after });
+    }
+  }
+  moves.sort((a, b) => b.score - a.score);
+  return moves.slice(0, n);
+}
+
+// Minimax 2-ply : on joue, l'adversaire joue son meilleur coup, on évalue
 function findBestMove(board, size, boardHistory) {
-  const moves = getAllRankedMoves(board, size, boardHistory);
-  return moves.length > 0 ? moves[0] : null;
+  const ourMoves = getAllRankedMoves(board, size, boardHistory);
+  if (ourMoves.length === 0) return null;
+
+  const topK   = Math.min(ourMoves.length, 25); // nos top-25 candidats
+  const oppTop = 8;                              // top-8 réponses adverses
+
+  let best = null, bestMinimax = -Infinity;
+
+  for (let i = 0; i < topK; i++) {
+    const move = ourMoves[i];
+    const afterOurs = simulateMove(board, size, move.x, move.y, 'X');
+
+    const oppReplies = topOppMoves(afterOurs, size, 'O', boardHistory, oppTop);
+
+    let minimaxScore;
+    if (oppReplies.length === 0) {
+      const terr = computeTerritory(afterOurs, size);
+      minimaxScore = netScore(afterOurs, size, terr);
+    } else {
+      minimaxScore = Infinity;
+      for (const opp of oppReplies) {
+        const terr = computeTerritory(opp.after, size);
+        const s = netScore(opp.after, size, terr);
+        if (s < minimaxScore) minimaxScore = s;
+      }
+    }
+
+    if (minimaxScore > bestMinimax) {
+      bestMinimax = minimaxScore;
+      best = { ...move, score: minimaxScore };
+    }
+  }
+
+  return best;
 }
 
 // ===== TRICHE =====
