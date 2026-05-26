@@ -196,107 +196,163 @@ function isValid(board, size, x, y, player) {
   return false;
 }
 
-function scoreMove(board, size, x, y) {
-  const player = 'X';
-  const opp = 'O';
-  const neighbors = getNeighbors(x, y, size);
-  let score = 0;
-  let reason = 'expand';
-
-  // Priorité 1 : capturer des pierres adverses
-  let captured = 0;
-  for (const [nx, ny] of neighbors) {
-    if (board[nx][ny] === opp) {
-      const g = getGroup(board, size, nx, ny);
-      if (g.liberties.size === 1) captured += g.stones.length;
+// Calcule le territoire par flood fill.
+// Retourne owner[x][y] = 'X' | 'O' | null (neutre)
+function computeTerritory(board, size) {
+  const owner = Array.from({ length: size }, () => new Array(size).fill(null));
+  const visited = new Set();
+  for (let sx = 0; sx < size; sx++) {
+    for (let sy = 0; sy < size; sy++) {
+      const k0 = sx * size + sy;
+      if (board[sx][sy] !== '.' || visited.has(k0)) continue;
+      const region = [];
+      const borders = new Set();
+      const queue = [[sx, sy]];
+      while (queue.length) {
+        const [x, y] = queue.shift();
+        const k = x * size + y;
+        if (visited.has(k)) continue;
+        visited.add(k);
+        region.push([x, y]);
+        for (const [nx, ny] of getNeighbors(x, y, size)) {
+          const c = board[nx][ny];
+          if (c === '.') queue.push([nx, ny]);
+          else if (c === 'X' || c === 'O') borders.add(c);
+        }
+      }
+      const o = borders.size === 1 ? [...borders][0] : null;
+      for (const [x, y] of region) owner[x][y] = o;
     }
   }
-  if (captured > 0) {
-    score += 5000 + captured * 200;
-    reason = `capture ${captured}`;
-  }
-
-  // Priorité 2 : sauver ses propres groupes en atari
-  let endangered = 0;
-  for (const [nx, ny] of neighbors) {
-    if (board[nx][ny] === player) {
-      const g = getGroup(board, size, nx, ny);
-      if (g.liberties.size === 1) endangered += g.stones.length;
-    }
-  }
-  if (endangered > 0) {
-    score += 2000 + endangered * 100;
-    if (reason === 'expand') reason = `save ${endangered}`;
-  }
-
-  // Priorité 3 : mettre l'adversaire en atari
-  let threatened = 0;
-  for (const [nx, ny] of neighbors) {
-    if (board[nx][ny] === opp) {
-      const g = getGroup(board, size, nx, ny);
-      if (g.liberties.size === 2) threatened += g.stones.length;
-    }
-  }
-  if (threatened > 0) {
-    score += 400 + threatened * 30;
-    if (reason === 'expand') reason = 'atari threat';
-  }
-
-  // Analyse après le coup
-  const after = simulateMove(board, size, x, y, player);
-  const ng = getGroup(after, size, x, y);
-  const libs = ng ? ng.liberties.size : 0;
-
-  // Pénalité self-atari (sauf capture)
-  if (captured === 0 && libs <= 1) {
-    score -= 1500;
-    reason = 'self-atari!';
-  } else {
-    score += libs * 20;
-  }
-
-  // Adjacence aux propres pierres (expansion)
-  for (const [nx, ny] of neighbors) {
-    if (board[nx][ny] === player) score += 40;
-    if (board[nx][ny] === opp) score -= 15;
-  }
-
-  // Contrôle du centre
-  const center = (size - 1) / 2;
-  const dist = Math.abs(x - center) + Math.abs(y - center);
-  score += (size - dist) * 8;
-
-  // Légère pénalité pour les coins (peu de libertés)
-  if ((x === 0 || x === size - 1) && (y === 0 || y === size - 1)) score -= 60;
-
-  // Bonus si on empiète sur territoire adverse
-  score += countNearbyTerritory(board, size, x, y, opp) * 25;
-
-  return { score, reason };
+  return owner;
 }
 
-// Compte les voisins d'un certain camp dans un rayon de 2
-function countNearbyTerritory(board, size, cx, cy, target) {
-  let count = 0;
-  for (let dx = -2; dx <= 2; dx++) {
-    for (let dy = -2; dy <= 2; dy++) {
-      const nx = cx + dx, ny = cy + dy;
-      if (nx < 0 || nx >= size || ny < 0 || ny >= size) continue;
-      if (board[nx][ny] === target) count++;
+// Score net du plateau (pierres + territoire) du point de vue de Black
+function netScore(board, size, terr) {
+  let s = 0;
+  for (let x = 0; x < size; x++)
+    for (let y = 0; y < size; y++) {
+      const c = board[x][y];
+      if (c === 'X') s++;
+      else if (c === 'O') s--;
+      else if (terr[x][y] === 'X') s++;
+      else if (terr[x][y] === 'O') s--;
+    }
+  return s;
+}
+
+// Vrai oeil : toutes les cases orthogonales adjacentes appartiennent au joueur,
+// et au plus 1 diagonale est adverse (0 en coin/bord)
+function isTrueEye(board, size, x, y, player) {
+  if (board[x][y] !== '.') return false;
+  const ortho = getNeighbors(x, y, size);
+  if (!ortho.every(([nx, ny]) => board[nx][ny] === player)) return false;
+  const diags = [];
+  if (x > 0 && y > 0)           diags.push(board[x-1][y-1]);
+  if (x > 0 && y < size-1)      diags.push(board[x-1][y+1]);
+  if (x < size-1 && y > 0)      diags.push(board[x+1][y-1]);
+  if (x < size-1 && y < size-1) diags.push(board[x+1][y+1]);
+  const bad = diags.filter(c => c !== player).length;
+  // Coin (2 ortho voisins) → 0 diag adverse ; bord (3) → ≤1 ; centre (4) → ≤1
+  return bad <= (ortho.length < 4 ? 0 : 1);
+}
+
+// Compte les yeux approximatifs d'un groupe (libertés ≠ vraies libertés)
+function countEyes(board, size, stones, player) {
+  let eyes = 0;
+  for (const [x, y] of stones) {
+    for (const [nx, ny] of getNeighbors(x, y, size)) {
+      if (isTrueEye(board, size, nx, ny, player)) eyes++;
     }
   }
-  return count;
+  return eyes;
 }
 
 function getAllRankedMoves(board, size) {
+  const player = 'X', opp = 'O';
+  const baseTerr = computeTerritory(board, size);
+  const baseScore = netScore(board, size, baseTerr);
+
+  // Pré-scan : libertés uniques des groupes en atari
+  const captureKeys = new Set(); // liberté d'un groupe adverse en atari → à jouer
+  const escapeKeys  = new Set(); // liberté d'un groupe allié en atari → à jouer
+  const seenGroups  = new Set();
+  for (let x = 0; x < size; x++) {
+    for (let y = 0; y < size; y++) {
+      const c = board[x][y];
+      if (c !== 'X' && c !== 'O') continue;
+      const gk = x * size + y;
+      if (seenGroups.has(gk)) continue;
+      const g = getGroup(board, size, x, y);
+      for (const s of g.stones) seenGroups.add(s[0] * size + s[1]);
+      if (g.liberties.size !== 1) continue;
+      const [lk] = g.liberties;
+      if (c === 'O') captureKeys.add(lk);
+      else            escapeKeys.add(lk);
+    }
+  }
+
   const moves = [];
   for (let x = 0; x < size; x++) {
     for (let y = 0; y < size; y++) {
-      if (!isValid(board, size, x, y, 'X')) continue;
-      const { score, reason } = scoreMove(board, size, x, y);
+      if (!isValid(board, size, x, y, player)) continue;
+      // Ne pas remplir ses propres vrais yeux
+      if (isTrueEye(board, size, x, y, player)) continue;
+
+      const k = x * size + y;
+      const after = simulateMove(board, size, x, y, player);
+      const afterTerr = computeTerritory(after, size);
+      const delta = netScore(after, size, afterTerr) - baseScore;
+
+      let score = delta * 100;
+      let reason = delta > 0 ? 'territoire +' + delta : 'expansion';
+
+      // Capture urgente
+      if (captureKeys.has(k)) {
+        score += 5000;
+        reason = 'capture';
+      }
+
+      // Fuite atari
+      if (escapeKeys.has(k)) {
+        score += 2000;
+        if (reason === 'expansion') reason = 'escape atari';
+      }
+
+      // Self-atari sans capture → très mauvais
+      const ng = getGroup(after, size, x, y);
+      if (ng && ng.liberties.size === 1 && !captureKeys.has(k)) {
+        score -= 1200;
+        reason = 'self-atari!';
+      }
+
+      // Mettre l'adversaire en atari après le coup
+      for (const [nx, ny] of getNeighbors(x, y, size)) {
+        if (after[nx] && after[nx][ny] === opp) {
+          const eg = getGroup(after, size, nx, ny);
+          if (eg && eg.liberties.size === 1) {
+            score += 400;
+            if (reason === 'expansion') reason = 'menace atari';
+          }
+        }
+      }
+
+      // Pénalité si on joue dans notre propre territoire déjà acquis
+      if (baseTerr[x][y] === player && !captureKeys.has(k) && !escapeKeys.has(k)) {
+        score -= 600;
+      }
+
+      // Bonus : créer ou consolider un oeil dans ses groupes
+      if (ng) {
+        const eyesAfter = countEyes(after, size, ng.stones, player);
+        if (eyesAfter >= 2) score += 300;
+        else if (eyesAfter === 1) score += 100;
+      }
+
       moves.push({ x, y, score, reason });
     }
   }
+
   moves.sort((a, b) => b.score - a.score);
   return moves;
 }
