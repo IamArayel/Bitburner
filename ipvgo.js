@@ -66,6 +66,7 @@ async function autoPlay(ns, startNew, opponent, size, cheat, verbose) {
         myPassed = true;
       } else {
         result = await ns.go.makeMove(move.x, move.y);
+        boardHistory.add(ns.go.getBoardState().join('')); // état après notre coup
         ns.tprint(`T${++turn} ${toGoCoord(move.x, move.y)} [${move.reason}] score=${move.score}`);
         myPassed = false;
       }
@@ -118,6 +119,7 @@ function getNeighbors(x, y, size) {
 }
 
 // Trouve le groupe connecté depuis (sx,sy) dans un plateau string[]
+// '#' = liberté permanente (impossible à jouer → groupe incapturable depuis ce côté)
 function getGroup(board, size, sx, sy) {
   const player = board[sx][sy];
   if (player !== 'X' && player !== 'O') return null;
@@ -134,7 +136,7 @@ function getGroup(board, size, sx, sy) {
     stones.push([x, y]);
     for (const [nx, ny] of getNeighbors(x, y, size)) {
       const c = board[nx][ny];
-      if (c === '.') liberties.add(nx * size + ny);
+      if (c === '.' || c === '#') liberties.add(nx * size + ny);
       else if (c === player) queue.push([nx, ny]);
     }
   }
@@ -173,7 +175,7 @@ function getGroupMut(b, size, sx, sy) {
     stones.push([x, y]);
     for (const [nx, ny] of getNeighbors(x, y, size)) {
       const c = b[nx][ny];
-      if (c === '.') liberties.add(nx * size + ny);
+      if (c === '.' || c === '#') liberties.add(nx * size + ny);
       else if (c === player) queue.push([nx, ny]);
     }
   }
@@ -187,13 +189,19 @@ function isValid(board, size, x, y, player) {
   for (const [nx, ny] of getNeighbors(x, y, size)) {
     const c = board[nx][ny];
     if (c === '.') return true;
+    if (c === '#') return true; // liberté permanente → toujours légal
     if (c === player) {
       const g = getGroup(board, size, nx, ny);
       if (g.liberties.size > 1) return true;
     }
     if (c === opp) {
       const g = getGroup(board, size, nx, ny);
-      if (g.liberties.size === 1) return true; // capture → légal
+      // Capturable seulement si toutes ses libertés sont jouables ('.' pas '#')
+      const playable = [...g.liberties].filter(k => {
+        const lx = Math.floor(k / size), ly = k % size;
+        return board[lx][ly] === '.';
+      });
+      if (playable.length === 1 && board[x][y] === '.') return true;
     }
   }
   return false;
@@ -244,19 +252,19 @@ function netScore(board, size, terr) {
   return s;
 }
 
-// Vrai oeil : toutes les cases orthogonales adjacentes appartiennent au joueur,
+// Vrai oeil : toutes les cases orthogonales adjacentes sont du joueur ou '#' (barrière permanente),
 // et au plus 1 diagonale est adverse (0 en coin/bord)
 function isTrueEye(board, size, x, y, player) {
   if (board[x][y] !== '.') return false;
   const ortho = getNeighbors(x, y, size);
-  if (!ortho.every(([nx, ny]) => board[nx][ny] === player)) return false;
+  if (!ortho.every(([nx, ny]) => board[nx][ny] === player || board[nx][ny] === '#')) return false;
+  if (!ortho.some(([nx, ny]) => board[nx][ny] === player)) return false; // au moins 1 vrai voisin
   const diags = [];
   if (x > 0 && y > 0)           diags.push(board[x-1][y-1]);
   if (x > 0 && y < size-1)      diags.push(board[x-1][y+1]);
   if (x < size-1 && y > 0)      diags.push(board[x+1][y-1]);
   if (x < size-1 && y < size-1) diags.push(board[x+1][y+1]);
-  const bad = diags.filter(c => c !== player).length;
-  // Coin (2 ortho voisins) → 0 diag adverse ; bord (3) → ≤1 ; centre (4) → ≤1
+  const bad = diags.filter(c => c !== player && c !== '#').length;
   return bad <= (ortho.length < 4 ? 0 : 1);
 }
 
