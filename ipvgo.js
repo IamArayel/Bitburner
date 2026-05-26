@@ -384,11 +384,11 @@ async function doCheat(ns, board, size) {
 // ===== AFFICHAGE =====
 
 function toGoCoord(x, y) {
-  return 'ABCDEFGHIJKLMNOPQRS'[x] + (y + 1);
+  return 'ABCDEFGHJKLMN'[x] + (y + 1);
 }
 
 function printBoard(ns, board, size) {
-  const cols = 'ABCDEFGHIJKLMNOPQRS';
+  const cols = 'ABCDEFGHJKLMN';
   let header = '   ';
   for (let x = 0; x < size; x++) header += cols[x] + ' ';
   ns.tprint(header);
