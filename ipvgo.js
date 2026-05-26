@@ -40,23 +40,25 @@ async function autoPlay(ns, startNew, opponent, size, cheat, verbose) {
 
   let myPassed = false;
   let turn = 0;
+  const boardHistory = new Set();
 
   while (true) {
     const state = ns.go.getGameState();
     if (state.currentPlayer === 'None') break;
 
     const board = ns.go.getBoardState();
+    boardHistory.add(board.join(''));
     const sz = board.length;
     if (verbose) printBoard(ns, board, sz);
 
     let result = null;
 
     if (cheat && ns.go.cheatSuccessChance() >= 0.55) {
-      result = await doCheat(ns, board, sz);
+      result = await doCheat(ns, board, sz, boardHistory);
     }
 
     if (!result) {
-      const move = findBestMove(board, sz);
+      const move = findBestMove(board, sz, boardHistory);
       if (!move) {
         result = await ns.go.passTurn();
         ns.tprint(`T${++turn} PASS (B:${state.blackScore} W:${state.whiteScore})`);
@@ -73,6 +75,7 @@ async function autoPlay(ns, startNew, opponent, size, cheat, verbose) {
 
     const oppResult = await ns.go.opponentNextTurn(false);
     if (!oppResult || oppResult.type === 'gameOver') break;
+    boardHistory.add(ns.go.getBoardState().join(''));
     if (oppResult.type === 'pass' && myPassed) break;
     if (oppResult.type !== 'pass') myPassed = false;
   }
@@ -268,7 +271,7 @@ function countEyes(board, size, stones, player) {
   return eyes;
 }
 
-function getAllRankedMoves(board, size) {
+function getAllRankedMoves(board, size, boardHistory) {
   const player = 'X', opp = 'O';
   const baseTerr = computeTerritory(board, size);
   const baseScore = netScore(board, size, baseTerr);
@@ -301,6 +304,7 @@ function getAllRankedMoves(board, size) {
 
       const k = x * size + y;
       const after = simulateMove(board, size, x, y, player);
+      if (boardHistory && boardHistory.has(after.join(''))) continue; // Ko
       const afterTerr = computeTerritory(after, size);
       const delta = netScore(after, size, afterTerr) - baseScore;
 
@@ -357,15 +361,15 @@ function getAllRankedMoves(board, size) {
   return moves;
 }
 
-function findBestMove(board, size) {
-  const moves = getAllRankedMoves(board, size);
+function findBestMove(board, size, boardHistory) {
+  const moves = getAllRankedMoves(board, size, boardHistory);
   return moves.length > 0 ? moves[0] : null;
 }
 
 // ===== TRICHE =====
 
-async function doCheat(ns, board, size) {
-  const moves = getAllRankedMoves(board, size);
+async function doCheat(ns, board, size, boardHistory) {
+  const moves = getAllRankedMoves(board, size, boardHistory);
   if (moves.length < 1) return null;
 
   const m1 = moves[0];
