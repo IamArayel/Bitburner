@@ -6,6 +6,7 @@ export async function main(ns) {
   const flags = ns.flags([
     ['auto', false],
     ['new', false],
+    ['loop', false],
     ['cheat', false],
     ['opponent', 'Slum Snakes'],
     ['size', 7],
@@ -14,17 +15,22 @@ export async function main(ns) {
   ]);
 
   if (flags.help) {
-    ns.tprint('run ipvgo.js [--auto] [--new [--opponent "Slum Snakes"] [--size 7]] [--cheat] [--verbose]');
+    ns.tprint('run ipvgo.js [--auto] [--new [--opponent "Slum Snakes"] [--size 7]] [--loop] [--cheat] [--verbose]');
     ns.tprint('Sans flag    : conseil sur la partie en cours');
     ns.tprint('--auto       : joue automatiquement la partie en cours');
     ns.tprint('--auto --new : démarre une nouvelle partie puis joue');
+    ns.tprint('--loop       : relance automatiquement une nouvelle partie après chaque fin');
     ns.tprint('Adversaires : Illuminati, Daedalus, ECorp, MegaCorp, NiteSec, The Black Hand,');
     ns.tprint('  BitRunners, Slum Snakes, Tetrads, The Syndicate, ???, No AI');
     return;
   }
 
   if (flags.auto) {
-    await autoPlay(ns, flags['new'], flags.opponent, flags.size, flags.cheat, flags.verbose);
+    ns.ui.openTail();
+    ns.ui.resizeTail(20, 1);
+    do {
+      await autoPlay(ns, flags['new'] || flags.loop, flags.opponent, flags.size, flags.cheat, flags.verbose);
+    } while (flags.loop);
   } else {
     advise(ns);
   }
@@ -40,10 +46,8 @@ async function autoPlay(ns, startNew, opponent, size, cheat, verbose) {
     const s = ns.go.getGameState();
     ns.tprint(`IPvGO reprise partie en cours${cheat ? ' [TRICHE]' : ''} (score B:${s.blackScore} W:${s.whiteScore})`);
   }
-  ns.ui.openTail();
 
   let myPassed = false;
-  let turn = 0;
   const boardHistory = new Set();
 
   while (true) {
@@ -73,7 +77,6 @@ async function autoPlay(ns, startNew, opponent, size, cheat, verbose) {
         try {
           result = await ns.go.makeMove(m.x, m.y);
           boardHistory.add(ns.go.getBoardState().join(''));
-          ns.print(`T${++turn} ${toGoCoord(m.x, m.y)} [${m.reason}] score=${m.score}`);
           myPassed = false;
           moved = true;
           break;
@@ -83,7 +86,6 @@ async function autoPlay(ns, startNew, opponent, size, cheat, verbose) {
       }
       if (!moved) {
         result = await ns.go.passTurn();
-        ns.print(`T${++turn} PASS`);
         if (myPassed) break;
         myPassed = true;
       }
@@ -101,6 +103,7 @@ async function autoPlay(ns, startNew, opponent, size, cheat, verbose) {
   const final = ns.go.getGameState();
   const won = final.blackScore > final.whiteScore;
   ns.tprint(`=== FIN : B=${final.blackScore} W=${final.whiteScore} ${won ? '✓ VICTOIRE' : '✗ DÉFAITE'} ===`);
+  ns.print(`B=${final.blackScore} W=${final.whiteScore} ${won ? 'VICTOIRE' : 'DÉFAITE'}`);
 }
 
 function advise(ns) {
