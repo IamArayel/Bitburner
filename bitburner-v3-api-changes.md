@@ -43,7 +43,7 @@ Nouvelles APIs ajoutées en v2.8.0 :
 | Ancien | Nouveau |
 |---|---|
 | `ns.hacknet.upgradeCores(i, n)` | `ns.hacknet.upgradeCore(i, n)` |
-| `ns.hacknet.getCoreUpgradeCost(i, n)` | `ns.hacknet.getCoreCost(i, n)` |
+| `ns.hacknet.upgradeCores(i, n)` | `ns.hacknet.upgradeCore(i, n)` ← seul vrai changement |
 
 RAM cost supprimé sur le namespace, ajouté par fonction individuelle.
 
