@@ -63,9 +63,9 @@ function pickTarget(ns, mode) {
   ];
 
   const reachable = candidates.filter(c =>
-    c.req <= hackLvl / 2 &&
     ns.serverExists(c.h) &&
-    ns.hasRootAccess(c.h)
+    ns.hasRootAccess(c.h) &&
+    hackLvl >= ns.getServerRequiredHackingLevel(c.h)
   );
 
   if (reachable.length === 0) return "n00dles";

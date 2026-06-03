@@ -5,8 +5,10 @@ export async function main(ns) {
 
   // En mode XP : tolère sécurité haute + serveur vide → spam hack pour XP pur
   // En mode money : cycle strict, maintient serveur optimal avant de hacker
-  const secMargin  = mode === "xp" ? 5    : 1;    // tolérance au-dessus du min
-  const moneyRatio = mode === "xp" ? 0.05 : 0.75; // seuil avant de grow
+  const secMargin  = mode === "xp" ? 5    : 1;
+  const moneyRatio = mode === "xp" ? 0.05 : 0.75;
+
+  if (ns.getPlayer().skills.hacking < ns.getServerRequiredHackingLevel(target)) return;
 
   while (true) {
     if (ns.getServerSecurityLevel(target) > ns.getServerMinSecurityLevel(target) + secMargin) {
