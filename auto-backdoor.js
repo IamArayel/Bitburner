@@ -4,6 +4,9 @@ export async function main(ns) {
     ns.disableLog("ALL");
     ns.ui.openTail();
 
+    const rawArg = ns.args[0] ?? "";
+    const mode = rawArg === "--money" ? "money" : rawArg === "--xp" ? "xp" : null;
+
     // purchaseProgram retourne false si déjà possédé ou fonds insuffisants → pas besoin de prix ni de pré-check
     const programs = ["BruteSSH.exe", "FTPCrack.exe", "relaySMTP.exe", "HTTPWorm.exe", "SQLInject.exe"];
 
@@ -55,7 +58,13 @@ export async function main(ns) {
             }
         }
     }
+    ns.singularity.connect("home");
     ns.tprint("🚀 Cycle terminé.");
+
+    if (mode) {
+        ns.tprint(`🚀 Lancement xp-manager.js (mode=${mode})`);
+        ns.exec("xp-manager.js", "home", 1, mode);
+    }
 }
 
 /**
