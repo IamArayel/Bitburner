@@ -23,9 +23,10 @@ export async function main(ns) {
     // Coûte 2 GB de RAM mais garantit que la liste est toujours correcte.
     const symbols = ns.stock.getSymbols();
 
-    // Accumule le profit/perte réalisé sur toute la session
     let totalPnl = 0;
     ns.print("=== LIQUIDATION — vente au meilleur taux ===");
+
+    ns.atExit(() => clearOverview());
 
     while (true) {
         // Nombre de positions encore ouvertes ce cycle
@@ -73,6 +74,7 @@ export async function main(ns) {
 
         // Plus aucune position ouverte : la liquidation est terminée, on quitte
         if (holdings === 0) {
+            clearOverview();
             ns.tprint(`SUCCESS Liquidation terminée. PnL total : $${ns.format.number(totalPnl, 2)}`);
             return;
         }
@@ -81,6 +83,44 @@ export async function main(ns) {
         if (loopPnl !== 0)
             ns.print(`[PNL] Boucle $${ns.format.number(loopPnl, 2)} | Total $${ns.format.number(totalPnl, 2)}`);
 
+        const remaining = calcRemaining(ns, symbols);
+        updateOverview(ns, totalPnl, remaining);
+
         await ns.sleep(SLEEP_TIME);
     }
+}
+
+function calcRemaining(ns, symbols) {
+    let total = 0;
+    for (const sym of symbols) {
+        const [lShares, lAvg, sShares, sAvg] = ns.stock.getPosition(sym);
+        if (lShares  > 0) total += (ns.stock.getBidPrice(sym) - lAvg) * lShares;
+        if (sShares  > 0) total += (sAvg - ns.stock.getAskPrice(sym)) * sShares;
+    }
+    return total;
+}
+
+function updateOverview(ns, realized, remaining) {
+    try {
+        const doc   = eval("document");
+        const hook0 = doc.getElementById("overview-extra-hook-0");
+        const hook1 = doc.getElementById("overview-extra-hook-1");
+        if (!hook0 || !hook1) return;
+        const color = realized >= 0 ? "#4caf50" : "#f44336";
+        hook0.innerHTML = "Liquidation réalisé<br>Reste à vendre";
+        hook1.innerHTML = [
+            `<strong style="color:${color}">$${ns.format.number(realized, 2)}</strong>`,
+            `$${ns.format.number(remaining, 2)}`,
+        ].join("<br>");
+    } catch (_) {}
+}
+
+function clearOverview() {
+    try {
+        const doc = eval("document");
+        const h0  = doc.getElementById("overview-extra-hook-0");
+        const h1  = doc.getElementById("overview-extra-hook-1");
+        if (h0) h0.innerHTML = "";
+        if (h1) h1.innerHTML = "";
+    } catch (_) {}
 }
