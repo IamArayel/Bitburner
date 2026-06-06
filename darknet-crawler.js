@@ -1,21 +1,20 @@
 /**
- * darknet-crawler.js — Explorateur auto-répliquant du Dark Net (BN5)
+ * darknet-crawler.js — Explorateur BFS du Dark Net (BN5)
  *
  * Prérequis : DarkscapeNavigator.exe
  *   → terminal : `buy DarkscapeNavigator.exe` (TOR requis)
  *   → ou acheter à Chongqing
  *
- * Lancer depuis home : run darknet-crawler.js [--tail]
- * Le script se copie lui-même sur chaque serveur darknet découvert.
+ * Lancer depuis home : run darknet-crawler.js
+ * Traverse le réseau darknet en BFS via connectToSession — pas de spread.
  *
- * Copier vers darkweb : scp darknet-crawler.js darkweb
- *
- * Mots de passe sauvegardés dans : darknet-passwords.json
- * (synchronisé vers home après chaque découverte)
+ * Fichiers :
+ *   darknet-passwords.json  — dictionnaire par modelId (éditable)
+ *   darknet-sessions.json   — cache auto { serveur → mot de passe }
  */
 
-const SCRIPT  = "darknet-crawler.js";
-const PW_FILE = "darknet-passwords.json";
+const DICT_FILE    = "darknet-passwords.json";
+const SESSION_FILE = "darknet-sessions.json";
 
 /** @param {NS} ns */
 export async function main(ns) {
@@ -25,10 +24,9 @@ export async function main(ns) {
   }
 
   ns.disableLog("ALL");
-  if (ns.getHostname() === "home") {
-    ns.ui.openTail();
-    if (!ns.read(PW_FILE)) ns.write(PW_FILE, "{}", "w");
-  }
+  ns.ui.openTail();
+  if (!ns.read(SESSION_FILE)) ns.write(SESSION_FILE, "{}", "w");
+  if (!ns.read(DICT_FILE))    ns.write(DICT_FILE,    "{}", "w");
 
   while (true) {
     try { await tick(ns); }
@@ -37,61 +35,93 @@ export async function main(ns) {
   }
 }
 
-// ─── Boucle principale ────────────────────────────────────────────────────
+// ─── Boucle principale — BFS ─────────────────────────────────────────────
 
 /** @param {NS} ns */
 async function tick(ns) {
-  await exploitSelf(ns);
+  const dict    = loadDict(ns);
+  const visited = new Set();
+  const queue   = [...ns.dnet.probe()];
 
-  const nearby = ns.dnet.probe();
-  ns.print(`[PROBE] ${nearby.length} serveur(s) visible(s) depuis ${ns.getHostname()}`);
+  ns.print(`[BFS] ${queue.length} nœud(s) initial(aux) depuis ${ns.getHostname()}`);
 
-  for (const target of nearby) {
-    try { await handleServer(ns, target); }
-    catch (e) { ns.print(`[ERR] ${target}: ${e}`); }
+  while (queue.length > 0) {
+    const target = queue.shift();
+    if (visited.has(target)) continue;
+    visited.add(target);
+
+    try {
+      const details = ns.dnet.getServerDetails(target);
+      ns.print(`[NODE] ${target}  online=${details.isOnline}  session=${details.hasSession}  modèle=${details.modelId}`);
+
+      if (!details.isOnline) continue;
+
+      const pw = await gainAccess(ns, target, details, dict);
+      if (pw === null) continue;
+
+      await ns.dnet.connectToSession(target, pw);
+      await exploitNode(ns, target);
+
+      const neighbors = ns.dnet.probe();
+      ns.print(`[NAV] ${target} → ${neighbors.length} voisin(s)`);
+      for (const n of neighbors) {
+        if (!visited.has(n)) queue.push(n);
+      }
+    } catch (e) {
+      ns.print(`[ERR] ${target}: ${e}`);
+    }
   }
 }
 
-// ─── Gestion d'un serveur voisin ─────────────────────────────────────────
+// ─── Accès à un serveur ───────────────────────────────────────────────────
 
-/** @param {NS} ns @param {string} target */
-async function handleServer(ns, target) {
-  const details = ns.dnet.getServerDetails(target);
-
-  ns.print(`[INFO] ${target}  online=${details.isOnline}  connecté=${details.isConnectedToCurrentServer}  session=${details.hasSession}  modèle=${details.modelId}`);
-
-  if (!details.isOnline || !details.isConnectedToCurrentServer) {
-    ns.print(`[SKIP] ${target} — hors ligne ou non connecté`);
-    return;
-  }
-
+/**
+ * Tente d'obtenir une session sur target. Retourne le mot de passe ou null.
+ * @param {NS} ns @param {string} target @param {object} details @param {Record<string,string[]>} dict
+ * @returns {Promise<string|null>}
+ */
+async function gainAccess(ns, target, details, dict) {
+  // Session déjà active : retrouver le mot de passe sans ré-authentifier
   if (details.hasSession) {
-    await spreadTo(ns, target);
-    return;
+    const sessions = loadSessions(ns);
+    if (sessions[target] !== undefined) return sessions[target];
+    // Fallback : premier candidat du dictionnaire pour ce modèle
+    const candidates = [...(dict[details.modelId] ?? []), ...(dict["_global"] ?? [])];
+    if (candidates.length) { saveSession(ns, target, candidates[0]); return candidates[0]; }
+    return "";
   }
 
-  const db = loadPasswords(ns);
-  if (db[target] !== undefined) {
-    ns.print(`[TRY]  ${target} — mot de passe mémorisé : "${db[target]}"`);
-    const r = await ns.dnet.authenticate(target, db[target]);
+  // 1. Cache de session
+  const sessions = loadSessions(ns);
+  if (sessions[target] !== undefined) {
+    const r = await ns.dnet.authenticate(target, sessions[target]);
     if (r.success) {
-      ns.print(`[AUTH✓] ${target} (mot de passe connu)`);
-      await spreadTo(ns, target);
-      return;
+      ns.print(`[AUTH✓] ${target} (session cache)`);
+      return sessions[target];
     }
-    ns.print(`[STALE] Mot de passe expiré pour ${target}, nouvelle tentative de crack`);
-    delete db[target];
-    ns.write(PW_FILE, JSON.stringify(db, null, 2), "w");
+    ns.print(`[STALE] ${target} — cache expiré`);
+    delete sessions[target];
+    ns.write(SESSION_FILE, JSON.stringify(sessions, null, 2), "w");
   }
 
-  const password = await solve(ns, target, details);
-  if (password !== null) {
-    ns.print(`[AUTH✓] ${target} — mot de passe trouvé : "${password}"`);
-    savePassword(ns, target, password);
-    await spreadTo(ns, target);
-  } else {
-    ns.print(`[FAIL] ${target} — mot de passe non trouvé. Utilisez : run add-password-darknet.js ${target} <motdepasse>`);
+  // 2. Dictionnaire par modèle
+  const dictPw = await tryDictionary(ns, target, details.modelId, dict);
+  if (dictPw !== null) {
+    ns.print(`[AUTH✓] ${target} — dict "${details.modelId}" : "${dictPw}"`);
+    saveSession(ns, target, dictPw);
+    return dictPw;
   }
+
+  // 3. Solveur algorithmique
+  const pw = await solve(ns, target, details);
+  if (pw !== null) {
+    ns.print(`[AUTH✓] ${target} — résolu : "${pw}"`);
+    saveSession(ns, target, pw);
+    return pw;
+  }
+
+  ns.print(`[FAIL] ${target} — modèle "${details.modelId}" non résolu`);
+  return null;
 }
 
 // ─── Résolution de mot de passe ───────────────────────────────────────────
@@ -503,6 +533,30 @@ async function solve(ns, target, details) {
   }
 }
 
+// ─── Dictionnaire ────────────────────────────────────────────────────────
+
+/**
+ * Essaie les mots de passe du dictionnaire pour le modèle donné, puis les mots de passe globaux.
+ * @param {NS} ns
+ * @param {string} target
+ * @param {string} modelId
+ * @param {Record<string, string[]>} dict
+ * @returns {Promise<string|null>}
+ */
+async function tryDictionary(ns, target, modelId, dict) {
+  const candidates = [...new Set([
+    ...(dict[modelId]  ?? []),
+    ...(dict["_global"] ?? []),
+  ])];
+  if (candidates.length === 0) return null;
+  ns.print(`[DICT] ${target}  modèle="${modelId}"  ${candidates.length} candidat(s)`);
+  for (const pw of candidates) {
+    const r = await ns.dnet.authenticate(target, pw);
+    if (r.success) return pw;
+  }
+  return null;
+}
+
 // ─── Fonctions utilitaires ────────────────────────────────────────────────
 
 /** Décode un chiffre romain vers un entier. */
@@ -547,39 +601,16 @@ function* permutations(arr) {
   }
 }
 
-// ─── Propagation ─────────────────────────────────────────────────────────
+// ─── Exploitation d'un nœud (après connectToSession) ─────────────────────
 
 /** @param {NS} ns @param {string} target */
-async function spreadTo(ns, target) {
-  if (target === "darkweb") return;
-
-  const scriptOk = await ns.scp(SCRIPT, target);
-  if (!scriptOk) {
-    ns.print(`[SPREAD FAIL] Impossible de copier ${SCRIPT} vers ${target}`);
-    return;
-  }
-  if (ns.fileExists(PW_FILE)) await ns.scp(PW_FILE, target);
-
-  const pid = ns.exec(SCRIPT, target, { preventDuplicates: true });
-  if (pid > 0) {
-    ns.print(`[SPREAD] → ${target} (pid ${pid})`);
-  } else {
-    ns.print(`[SPREAD WARN] scp OK mais exec échoué sur ${target} (RAM insuffisante ?)`);
-  }
-}
-
-// ─── Exploitation du serveur courant ─────────────────────────────────────
-
-/** @param {NS} ns */
-async function exploitSelf(ns) {
-  const host = ns.getHostname();
-
+async function exploitNode(ns, target) {
   try {
     const limit   = ns.dnet.getStasisLinkLimit();
     const stasied = ns.dnet.getStasisLinkedServers();
-    if (!stasied.includes(host) && stasied.length < limit) {
+    if (!stasied.includes(target) && stasied.length < limit) {
       ns.dnet.setStasisLink();
-      ns.print(`[STASIS] Lien appliqué sur ${host} (${stasied.length + 1}/${limit})`);
+      ns.print(`[STASIS] ${target} (${stasied.length + 1}/${limit})`);
     }
   } catch {}
 
@@ -590,31 +621,29 @@ async function exploitSelf(ns) {
     }
   } catch {}
 
-  const caches = ns.ls(host, ".cache");
-  for (const f of caches) {
-    try {
-      const result = await ns.dnet.openCache(f);
-      ns.tprint(`[CACHE] ${host}/${f} → ${JSON.stringify(result)}`);
-    } catch {}
-  }
-
   try { await ns.dnet.phishingAttack(); } catch {}
 }
 
-// ─── Persistance des mots de passe ───────────────────────────────────────
+// ─── Persistance ─────────────────────────────────────────────────────────
+
+/** @param {NS} ns @returns {Record<string, string[]>} */
+function loadDict(ns) {
+  try { return JSON.parse(ns.read(DICT_FILE) || "{}"); }
+  catch { return {}; }
+}
 
 /** @param {NS} ns @returns {Record<string, string>} */
-function loadPasswords(ns) {
-  try { return JSON.parse(ns.read(PW_FILE) || "{}"); }
+function loadSessions(ns) {
+  try { return JSON.parse(ns.read(SESSION_FILE) || "{}"); }
   catch { return {}; }
 }
 
 /** @param {NS} ns @param {string} host @param {string} password */
-function savePassword(ns, host, password) {
-  const db = loadPasswords(ns);
+function saveSession(ns, host, password) {
+  const db = loadSessions(ns);
   db[host] = password;
-  ns.write(PW_FILE, JSON.stringify(db, null, 2), "w");
-  try { ns.scp(PW_FILE, "home"); } catch {}
+  ns.write(SESSION_FILE, JSON.stringify(db, null, 2), "w");
+  try { ns.scp(SESSION_FILE, "home"); } catch {}
 }
 
 // ─── Autocomplétion terminal ──────────────────────────────────────────────
