@@ -1,5 +1,7 @@
 // Précalcul de la décroissance d'influence : 0.65^d pour d=0..24
 const DECAY = Array.from({ length: 25 }, (_, i) => Math.pow(0.65, i));
+// "--cheat" autorisé si Bitnode 14 terminé
+// run ipvgo.js --auto --new --loop --opponent "Daedalus" --size 7 --cheat
 
 /** @param {NS} ns */
 export async function main(ns) {
@@ -61,7 +63,7 @@ async function autoPlay(ns, startNew, opponent, size, cheat, verbose) {
 
     let result = null;
 
-    if (cheat && ns.go.cheatSuccessChance() >= 0.55) {
+    if (cheat && ns.go.cheat.getCheatSuccessChance() >= 0.55) {
       try { result = await doCheat(ns, board, sz, boardHistory); } catch (_) { result = null; }
     }
 
@@ -572,7 +574,7 @@ async function doCheat(ns, board, size, boardHistory) {
   if (moves2.length > 0) {
     const m2 = moves2[0];
     ns.print(`TRICHE: ${toGoCoord(m1.x, m1.y)} + ${toGoCoord(m2.x, m2.y)}`);
-    return await ns.go.cheatPlayTwoMoves(m1.x, m1.y, m2.x, m2.y);
+    return await ns.go.cheat.playTwoMoves(m1.x, m1.y, m2.x, m2.y);
   }
   return null;
 }
