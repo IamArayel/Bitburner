@@ -11,7 +11,9 @@
       "Bash(Sort-Object FullName)",
       "WebFetch(domain:api.github.com)",
       "WebSearch",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(grep -o \"cheat[A-Za-z]*\\\\|successChance\\\\|getCheat[A-Za-z]*\" \"C:/Program Files \\(x86\\)/Steam/steamapps/common/Bitburner/resources/app/dist/main.bundle.js\" | sort -u | head -40)",
+      "Read(//c/Program Files \\(x86\\)/Steam/steamapps/common/Bitburner/resources/app/dist/**)"
     ]
   }
 }
