@@ -1,6 +1,8 @@
 /** @param {NS} ns */
 export async function main(ns) {
-    ns.tprint(connectCommandToServer(findPathToServer(ns, "home", ns.args[0])));
+    const path = findPathToServer(ns, "home", ns.args[0]);
+    if (path == null) { ns.tprint("Server not found: " + ns.args[0]); return; }
+    ns.tprint(connectCommandToServer(path));
 }
  
 /**
