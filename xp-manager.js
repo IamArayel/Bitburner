@@ -22,13 +22,13 @@ export async function main(ns) {
     const threads   = Math.floor(freeRam / scriptRam);
     if (threads < 1) continue;
 
-    // Déjà actif avec la bonne cible et le bon mode → skip
-    if (ns.isRunning(workerScript, host, target, mode)) continue;
-
-    // Tuer uniquement les anciennes instances du worker (pas killall)
+    // Tuer toutes les instances du worker existantes
     for (const proc of ns.ps(host)) {
       if (proc.filename === workerScript) ns.kill(proc.pid);
     }
+
+    // Déjà actif avec la bonne cible et le bon mode → skip
+    if (ns.isRunning(workerScript, host, target, mode)) continue;
 
     const pid = ns.exec(workerScript, host, threads, target, mode);
     ns.tprint(pid > 0 ? `[${host}] ${threads}t → ${target}` : `[${host}] ERREUR lancement`);
