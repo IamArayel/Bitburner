@@ -74,7 +74,7 @@ function manageBladeburner(ns) {
 
   // Récupération stamina
   if (stamina / maxStamina < 0.4) {
-    if (current.name !== "Hyperbolic Regeneration Chamber") {
+    if (current?.name !== "Hyperbolic Regeneration Chamber") {
       ns.bladeburner.startAction("General", "Hyperbolic Regeneration Chamber");
     }
     return;
@@ -82,7 +82,7 @@ function manageBladeburner(ns) {
 
   if (rank < 50) {
     // Démarrage : entraînement
-    if (current.name !== "Training") ns.bladeburner.startAction("General", "Training");
+    if (current?.name !== "Training") ns.bladeburner.startAction("General", "Training");
     return;
   }
 
@@ -98,7 +98,7 @@ function manageBladeburner(ns) {
         const remaining = ns.bladeburner.getActionCountRemaining(group.type, name);
         const [minChance] = ns.bladeburner.getActionEstimatedSuccessChance(group.type, name);
         if (remaining > 0 && minChance > 0.55) {
-          if (current.type !== group.type || current.name !== name) {
+          if (current?.type !== group.type || current?.name !== name) {
             ns.bladeburner.startAction(group.type, name);
           }
           return;
@@ -108,7 +108,7 @@ function manageBladeburner(ns) {
   }
 
   // Améliorer la précision des estimations
-  if (current.name !== "Field Analysis") {
+  if (current?.name !== "Field Analysis") {
     ns.bladeburner.startAction("General", "Field Analysis");
   }
 }
