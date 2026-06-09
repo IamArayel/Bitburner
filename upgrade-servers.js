@@ -87,7 +87,7 @@ export async function main(ns) {
 						maxPurchaseableRam *= 2;
 						ramUpgradeCost = ns.cloud.getServerCost(maxPurchaseableRam);
 						ns.print("Double RAM tier: " + maxPurchaseableRam + " GB");
-						if (homeMoney > ramUpgradeCost) {
+						if (homeMoney < ramUpgradeCost) {
 							// we should switch to a higher RAM tier but cannot afford it. Wait for more money.
 							return;
 						}
