@@ -16,19 +16,15 @@ export async function main(ns) {
   for (const host of servers) {
     await ns.scp(workerScript, host);
 
+    for (const proc of ns.ps(host)) {
+      if (proc.filename === workerScript) ns.kill(proc.pid);
+    }
+
     const reserve   = host === "home" ? HOME_RESERVE : 0;
     const freeRam   = ns.getServerMaxRam(host) - ns.getServerUsedRam(host) - reserve;
     const scriptRam = ns.getScriptRam(workerScript, host);
     const threads   = Math.floor(freeRam / scriptRam);
     if (threads < 1) continue;
-
-    // Tuer toutes les instances du worker existantes
-    for (const proc of ns.ps(host)) {
-      if (proc.filename === workerScript) ns.kill(proc.pid);
-    }
-
-    // Déjà actif avec la bonne cible et le bon mode → skip
-    if (ns.isRunning(workerScript, host, target, mode)) continue;
 
     const pid = ns.exec(workerScript, host, threads, target, mode);
     ns.tprint(pid > 0 ? `[${host}] ${threads}t → ${target}` : `[${host}] ERREUR lancement`);
