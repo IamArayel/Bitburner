@@ -20,8 +20,8 @@ export async function main(ns) {
 
     // Hacking farm minimal pour revenus
     rootAllServers(ns);
-    launchOnce(ns, "deploy-hgw-all.js");
-    launchOnce(ns, "upgrade-servers.js");
+    launchOnce(ns, "xp-manager.js --xp");
+    //launchOnce(ns, "upgrade-servers.js");
 
     // Gym pour stats combat si Singularity dispo
     if (!ns.bladeburner.inBladeburner()) {
