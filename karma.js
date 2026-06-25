@@ -1,50 +1,36 @@
 /** @param {NS} ns */
 export async function main(ns) {
-    // Désactive les logs pour éviter de spammer le terminal de script
     ns.disableLog("ALL");
-    ns.clearLog();
 
-    // On utilise globalThis pour accéder au document DOM du jeu
-    const doc = globalThis["document"];
-
-    // Les développeurs de Bitburner ont prévu ces "hooks" dans le DOM 
-    // spécifiquement pour que les joueurs puissent ajouter des éléments au HUD
+    const doc   = globalThis["document"];
     const hook0 = doc.getElementById('overview-extra-hook-0');
     const hook1 = doc.getElementById('overview-extra-hook-1');
 
-    // Vérification de sécurité
     if (!hook0 || !hook1) {
-        ns.tprint("ERREUR : Impossible de trouver les hooks du HUD. Êtes-vous sur la bonne version ?");
+        ns.tprint("ERREUR : hooks HUD introuvables.");
         return;
     }
 
-    // Fonction de nettoyage exécutée lorsque vous tuez le script
     ns.atExit(() => {
-        hook0.innerText = "";
-        hook1.innerText = "";
-        ns.tprint("HUD Karma désactivé.");
+        delete hook0.dataset.karma;
+        delete hook1.dataset.karma;
+        renderHooks(hook0, hook1);
     });
 
-    ns.print("HUD Karma activé. Le script tourne en tâche de fond.");
-
-    // Boucle d'actualisation du HUD
     while (true) {
         try {
-            // La fonction ns.heart.break() est la méthode officielle pour lire le Karma
-            const karma = ns.heart.break();
-
-            // Affichage dans le HUD
-            // hook0 = Colonne des noms/labels
-            // hook1 = Colonne des valeurs
-            hook0.innerText = "Karma \n";
-            hook1.innerText = `${ns.format.number(karma, 2)} \n`;
-
+            hook0.dataset.karma = "Karma";
+            hook1.dataset.karma = ns.format.number(ns.heart.break(), 2);
+            renderHooks(hook0, hook1);
         } catch (err) {
-            ns.print("Erreur de mise à jour du HUD : " + String(err));
+            ns.print("Erreur HUD : " + String(err));
         }
-
-        // Met en pause le script pendant 1 seconde avant la prochaine actualisation 
-        // (Très important pour ne pas faire planter le jeu)
         await ns.sleep(2000);
     }
+}
+
+function renderHooks(hook0, hook1) {
+    const keys = Object.keys(hook0.dataset);
+    hook0.innerHTML = keys.map(k => hook0.dataset[k]).join('<br>');
+    hook1.innerHTML = keys.map(k => hook1.dataset[k] ?? '').join('<br>');
 }
