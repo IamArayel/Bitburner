@@ -107,20 +107,30 @@ function updateOverview(ns, realized, remaining) {
         const hook1 = doc.getElementById("overview-extra-hook-1");
         if (!hook0 || !hook1) return;
         const color = realized >= 0 ? "#4caf50" : "#f44336";
-        hook0.innerHTML = "Liquidation réalisé<br>Reste à vendre";
-        hook1.innerHTML = [
-            `<strong style="color:${color}">$${ns.format.number(realized, 2)}</strong>`,
-            `$${ns.format.number(remaining, 2)}`,
-        ].join("<br>");
+        hook0.dataset.sellerRealized  = "Liquidation réalisé";
+        hook0.dataset.sellerRemaining = "Reste à vendre";
+        hook1.dataset.sellerRealized  = `<strong style="color:${color}">$${ns.format.number(realized, 2)}</strong>`;
+        hook1.dataset.sellerRemaining = `$${ns.format.number(remaining, 2)}`;
+        renderHooks(hook0, hook1);
     } catch (_) {}
 }
 
 function clearOverview() {
     try {
-        const doc = eval("document");
-        const h0  = doc.getElementById("overview-extra-hook-0");
-        const h1  = doc.getElementById("overview-extra-hook-1");
-        if (h0) h0.innerHTML = "";
-        if (h1) h1.innerHTML = "";
+        const doc   = eval("document");
+        const hook0 = doc.getElementById("overview-extra-hook-0");
+        const hook1 = doc.getElementById("overview-extra-hook-1");
+        if (!hook0 || !hook1) return;
+        for (const k of ["sellerRealized", "sellerRemaining"]) {
+            delete hook0.dataset[k];
+            delete hook1.dataset[k];
+        }
+        renderHooks(hook0, hook1);
     } catch (_) {}
+}
+
+function renderHooks(hook0, hook1) {
+    const keys = Object.keys(hook0.dataset);
+    hook0.innerHTML = keys.map(k => hook0.dataset[k]).join("<br>");
+    hook1.innerHTML = keys.map(k => hook1.dataset[k] ?? "").join("<br>");
 }

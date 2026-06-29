@@ -231,21 +231,32 @@ function updateOverview(ns, realized, unrealized) {
         if (!hook0 || !hook1) return;
         const total = realized + unrealized;
         const color = total >= 0 ? "#4caf50" : "#f44336";
-        hook0.innerHTML = "Stock réalisé<br>Stock latent<br>Stock total";
-        hook1.innerHTML = [
-            `$${ns.format.number(realized, 2)}`,
-            `$${ns.format.number(unrealized, 2)}`,
-            `<strong style="color:${color}">$${ns.format.number(total, 2)}</strong>`,
-        ].join("<br>");
+        hook0.dataset.traderRealized   = "Stock réalisé";
+        hook0.dataset.traderUnrealized = "Stock latent";
+        hook0.dataset.traderTotal      = "Stock total";
+        hook1.dataset.traderRealized   = `$${ns.format.number(realized, 2)}`;
+        hook1.dataset.traderUnrealized = `$${ns.format.number(unrealized, 2)}`;
+        hook1.dataset.traderTotal      = `<strong style="color:${color}">$${ns.format.number(total, 2)}</strong>`;
+        renderHooks(hook0, hook1);
     } catch (_) {}
 }
 
 function clearOverview() {
     try {
-        const doc = eval("document");
-        const h0  = doc.getElementById("overview-extra-hook-0");
-        const h1  = doc.getElementById("overview-extra-hook-1");
-        if (h0) h0.innerHTML = "";
-        if (h1) h1.innerHTML = "";
+        const doc  = eval("document");
+        const hook0 = doc.getElementById("overview-extra-hook-0");
+        const hook1 = doc.getElementById("overview-extra-hook-1");
+        if (!hook0 || !hook1) return;
+        for (const k of ["traderRealized", "traderUnrealized", "traderTotal"]) {
+            delete hook0.dataset[k];
+            delete hook1.dataset[k];
+        }
+        renderHooks(hook0, hook1);
     } catch (_) {}
+}
+
+function renderHooks(hook0, hook1) {
+    const keys = Object.keys(hook0.dataset);
+    hook0.innerHTML = keys.map(k => hook0.dataset[k]).join("<br>");
+    hook1.innerHTML = keys.map(k => hook1.dataset[k] ?? "").join("<br>");
 }
