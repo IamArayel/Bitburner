@@ -83,5 +83,5 @@ function getAllRooted(ns) {
       if (!seen.has(n)) { seen.add(n); queue.push(n); }
     }
   }
-  return [...seen].filter(s => ns.hasRootAccess(s));
+  return [...seen].filter(s => ns.hasRootAccess(s) && !s.startsWith("hacknet-server-"));
 }
