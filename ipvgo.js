@@ -1,7 +1,8 @@
 // Précalcul de la décroissance d'influence : 0.65^d pour d=0..24
 const DECAY = Array.from({ length: 25 }, (_, i) => Math.pow(0.65, i));
 // "--cheat" autorisé si Bitnode 14 terminé
-// run ipvgo.js --auto --new --loop --opponent "Daedalus" --size 7 --cheat
+// run ipvgo.js --auto --new --loop --opponent "Netburners" --size 7  |  Hacknet
+// run ipvgo.js --auto --new --loop --opponent "Daedalus" --size 7  |  Reputation gain
 
 /** @param {NS} ns */
 export async function main(ns) {
