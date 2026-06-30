@@ -7,19 +7,19 @@
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
-  ns.ui.resizeTail(600, 520);
+  ns.ui.resizeTail(600, 540);
 
   const CORP    = "MegaCorp";
   const DIV     = "Agriculture";
   const CITIES  = ["Sector-12", "Aevum", "Volhaven", "Chongqing", "New Tokyo", "Ishima"];
   const SLEEP   = 5_000;
-  const INVEST1 = Number(ns.args[0]) || 210e9;   // $210B par défaut
-  const INVEST2 = Number(ns.args[1]) || 5e12;    // $5T   par défaut
+  const INVEST1 = Number(ns.args[0]) || 210e9;
+  const INVEST2 = Number(ns.args[1]) || 5e12;
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   if (!ns.corporation.hasCorporation()) {
-    try   { ns.corporation.createCorporation(CORP, false); } // BN3 : seed gratuit
-    catch { ns.corporation.createCorporation(CORP, true);  } // sinon : $150B de home
+    try   { ns.corporation.createCorporation(CORP, false); }
+    catch { ns.corporation.createCorporation(CORP, true);  }
   }
 
   if (!ns.corporation.getCorporation().divisions.includes(DIV)) {
@@ -31,14 +31,15 @@ export async function main(ns) {
     const corp  = ns.corporation.getCorporation();
     const funds = corp.funds;
 
-    try { setupCities(ns, DIV, CITIES);              } catch (e) { ns.print(`[cities]   ${e}`); }
-    try { manageOffices(ns, DIV, CITIES, funds);     } catch (e) { ns.print(`[offices]  ${e}`); }
-    try { manageWarehouses(ns, DIV, CITIES, funds);  } catch (e) { ns.print(`[wh]       ${e}`); }
-    try { manageSales(ns, DIV, CITIES);              } catch (e) { ns.print(`[sales]    ${e}`); }
-    try { manageLevelUpgrades(ns, funds);            } catch (e) { ns.print(`[lvlup]    ${e}`); }
-    try { manageUnlocks(ns, funds);                  } catch (e) { ns.print(`[unlocks]  ${e}`); }
-    try { manageAdVert(ns, DIV, funds);              } catch (e) { ns.print(`[advert]   ${e}`); }
-    try { manageResearch(ns, DIV);                   } catch (e) { ns.print(`[research] ${e}`); }
+    try { setupCities(ns, DIV, CITIES);                } catch (e) { ns.print(`[cities]   ${e}`); }
+    try { manageOffices(ns, DIV, CITIES, funds);       } catch (e) { ns.print(`[offices]  ${e}`); }
+    try { manageWarehouses(ns, DIV, CITIES, funds);    } catch (e) { ns.print(`[wh]       ${e}`); }
+    try { manageRealEstate(ns, DIV, CITIES, funds);    } catch (e) { ns.print(`[re]       ${e}`); }
+    try { manageSales(ns, DIV, CITIES);                } catch (e) { ns.print(`[sales]    ${e}`); }
+    try { manageLevelUpgrades(ns, funds);              } catch (e) { ns.print(`[lvlup]    ${e}`); }
+    try { manageUnlocks(ns, funds);                    } catch (e) { ns.print(`[unlocks]  ${e}`); }
+    try { manageAdVert(ns, DIV, funds);                } catch (e) { ns.print(`[advert]   ${e}`); }
+    try { manageResearch(ns, DIV);                     } catch (e) { ns.print(`[research] ${e}`); }
     try { checkInvestment(ns, corp, INVEST1, INVEST2); } catch (e) { ns.print(`[invest]   ${e}`); }
 
     printDashboard(ns, corp, DIV, CITIES);
@@ -64,27 +65,31 @@ const ALL_JOBS = [
   "Operations", "Engineer", "Business", "Management", "Research & Development",
 ];
 
-/** Répartition des postes selon la taille du bureau */
-function getJobAssign(size) {
+/** Guide : démarrer avec Ops + Engineer + Management (pas Business).
+ *  Quand toutes les recherches sont faites, redistribuer les R&D vers Ops. */
+function getJobAssign(size, rdDone = false) {
   if (size <= 3) {
-    return { "Operations": 1, "Engineer": 1, "Business": 1,
-             "Management": 0, "Research & Development": 0 };
+    return { "Operations": 1, "Engineer": 1, "Business": 0,
+             "Management": 1, "Research & Development": 0 };
   }
-  const ops  = Math.max(1, Math.round(size * 0.25));
   const eng  = Math.max(1, Math.round(size * 0.20));
   const bus  = Math.max(1, Math.round(size * 0.10));
   const mgmt = Math.max(1, Math.round(size * 0.20));
-  const rnd  = Math.max(0, size - ops - eng - bus - mgmt);
+  const rnd  = rdDone ? 0 : Math.max(0, Math.round(size * 0.25));
+  const ops  = Math.max(1, size - eng - bus - mgmt - rnd);
   return { "Operations": ops, "Engineer": eng, "Business": bus,
            "Management": mgmt, "Research & Development": rnd };
 }
 
 function manageOffices(ns, div, cities, funds) {
+  const rdDone = RESEARCH_PRIORITY.every(r => {
+    try { return ns.corporation.hasResearched(div, r); } catch { return false; }
+  });
+
   for (const city of cities) {
     let office;
     try { office = ns.corporation.getOffice(div, city); } catch { continue; }
 
-    // Cible progressive selon les fonds
     const target = funds > 1e12  ? 30
                  : funds > 200e9 ? 15
                  : funds > 30e9  ? 9
@@ -93,12 +98,11 @@ function manageOffices(ns, div, cities, funds) {
     if (office.size < target) {
       try {
         ns.corporation.expandOffice(div, city, target - office.size);
-        office = ns.corporation.getOffice(div, city); // refresh
+        office = ns.corporation.getOffice(div, city);
       } catch {}
     }
 
-    // Assignation automatique des postes (déclenche l'embauche automatique)
-    const assign = getJobAssign(office.size);
+    const assign = getJobAssign(office.size, rdDone);
     for (const job of ALL_JOBS) {
       try { ns.corporation.setAutoJobAssignment(div, city, job, assign[job] ?? 0); } catch {}
     }
@@ -111,7 +115,6 @@ function manageWarehouses(ns, div, cities, funds) {
     if (!ns.corporation.hasWarehouse(div, city)) continue;
     const wh = ns.corporation.getWarehouse(div, city);
 
-    // Cible de taille progressive
     const target = funds > 1e12  ? 3000
                  : funds > 200e9 ? 2000
                  : funds > 30e9  ? 1000
@@ -122,27 +125,48 @@ function manageWarehouses(ns, div, cities, funds) {
       try { ns.corporation.upgradeWarehouse(div, city, 1); } catch {}
     }
 
-    // Smart Supply dès qu'il est débloqué
     if (ns.corporation.hasUnlock("Smart Supply")) {
       try { ns.corporation.setSmartSupply(div, city, true); } catch {}
     }
   }
 }
 
-// ── Vente des matières produites ──────────────────────────────────────────────
-function manageSales(ns, div, cities) {
+// ── Real Estate (fort impact sur le multiplicateur de production Agriculture) ──
+function manageRealEstate(ns, div, cities, funds) {
+  const target = funds > 1e12  ? 10_000
+               : funds > 200e9 ?  5_000
+               : funds > 30e9  ?  2_000
+               :                    500;
+
   for (const city of cities) {
     if (!ns.corporation.hasWarehouse(div, city)) continue;
-    try { ns.corporation.sellMaterial(div, city, "Food",   "MAX", "MP"); } catch {}
-    try { ns.corporation.sellMaterial(div, city, "Plants", "MAX", "MP"); } catch {}
+    const re = ns.corporation.getMaterial(div, city, "Real Estate").qty;
+    try { ns.corporation.buyMaterial(div, city, "Real Estate", re < target ? 50 : 0); } catch {}
+  }
+}
+
+// ── Vente des matières produites ──────────────────────────────────────────────
+function manageSales(ns, div, cities) {
+  const hasTA1 = (() => {
+    try { return ns.corporation.hasResearched(div, "Market-TA.I"); } catch { return false; }
+  })();
+
+  for (const city of cities) {
+    if (!ns.corporation.hasWarehouse(div, city)) continue;
+    for (const mat of ["Food", "Plants"]) {
+      try {
+        ns.corporation.sellMaterial(div, city, mat, "MAX", "MP");
+        if (hasTA1) ns.corporation.setMaterialMarketTA1(div, city, mat, true);
+      } catch {}
+    }
   }
 }
 
 // ── Upgrades à niveaux ────────────────────────────────────────────────────────
-// Ordre de priorité : stockage → production → ventes → bien-être employés
+// Smart Factories en priorité : impact immédiat sur toute la productivité
 const LEVEL_UPGRADES = [
-  "Smart Storage",
   "Smart Factories",
+  "Smart Storage",
   "Wilson Analytics",
   "ABC SalesBots",
   "Project Insight",
@@ -159,7 +183,7 @@ function manageLevelUpgrades(ns, funds) {
       const cost = ns.corporation.getUpgradeLevelCost(upg);
       if (funds > cost * 2) {
         ns.corporation.levelUpgrade(upg);
-        return; // un seul upgrade par tick pour éviter de vider la trésorerie
+        return;
       }
     } catch {}
   }
@@ -167,9 +191,9 @@ function manageLevelUpgrades(ns, funds) {
 
 // ── Déverrouillages one-time ──────────────────────────────────────────────────
 const UNLOCKS = [
-  "Smart Supply",                 // gestion auto des matières premières
-  "Market Research - Demand",     // affiche la demande du marché
-  "Market Data - Competition",    // affiche la compétition
+  "Smart Supply",
+  "Market Research - Demand",
+  "Market Data - Competition",
 ];
 
 function manageUnlocks(ns, funds) {
@@ -177,9 +201,7 @@ function manageUnlocks(ns, funds) {
     try {
       if (!ns.corporation.hasUnlock(unlock)) {
         const cost = ns.corporation.getUnlockCost(unlock);
-        if (funds > cost * 2) {
-          ns.corporation.purchaseUnlock(unlock);
-        }
+        if (funds > cost * 2) ns.corporation.purchaseUnlock(unlock);
       }
     } catch {}
   }
@@ -194,15 +216,16 @@ function manageAdVert(ns, div, funds) {
 }
 
 // ── Recherche ─────────────────────────────────────────────────────────────────
-// Garder 50% de buffer de points de recherche avant d'acheter
+// Ordre per guide : Hi-Tech → Market-TA.I → Self-Correcting → Drones → Overclock
+// Market-TA.II volontairement absent (guide : "Useless")
 const RESEARCH_PRIORITY = [
-  "Hi-Tech R&D Laboratory",   // multiplie les points de recherche gagnés
-  "Market-TA.I",              // prérequis de Market-TA.II
-  "Market-TA.II",             // prix de vente automatiquement optimal
-  "Overclock",                // boost de production
+  "Hi-Tech R&D Laboratory",
+  "Market-TA.I",
+  "Self-Correcting Assemblers",
+  "Drones",
   "Drones - Assembly",
   "Drones - Transport",
-  "Self-Correcting Assemblers",
+  "Overclock",
 ];
 
 function manageResearch(ns, div) {
@@ -238,19 +261,18 @@ function checkInvestment(ns, corp, thresh1, thresh2) {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function printDashboard(ns, corp, div, cities) {
   ns.clearLog();
-  const sep    = "─".repeat(58);
+  const sep    = "─".repeat(62);
   const time   = new Date().toLocaleTimeString();
   const profit = corp.revenue - corp.expenses;
 
   ns.print(sep);
-  ns.print(`  CORP MANAGER                          ${time}`);
+  ns.print(`  CORP MANAGER                              ${time}`);
   ns.print(sep);
   ns.print(`  ${corp.name}  ${corp.public ? "(PUBLIQUE)" : "(Privée)"}`);
   ns.print(`  Fonds   : $${ns.format.number(corp.funds, 2)}`);
   ns.print(`  Revenue : $${ns.format.number(corp.revenue, 2)}/s`);
   ns.print(`  Profit  : ${profit >= 0 ? "+" : ""}$${ns.format.number(profit, 2)}/s`);
 
-  // Upgrades corp
   try {
     const lvls = LEVEL_UPGRADES.slice(0, 4).map(u => {
       const lv = ns.corporation.getUpgradeLevel(u);
@@ -259,17 +281,16 @@ function printDashboard(ns, corp, div, cities) {
     ns.print(`  Upgrades: ${lvls}`);
   } catch {}
 
-  // Division Agriculture
   try {
     const divInfo = ns.corporation.getDivision(div);
     ns.print(sep);
     ns.print(`  ${div.toUpperCase()}`);
     const ssOk   = ns.corporation.hasUnlock("Smart Supply") ? "SS✓" : "SS✗";
+    const ta1Ok  = (() => { try { return ns.corporation.hasResearched(div, "Market-TA.I") ? "TA✓" : "TA✗"; } catch { return "TA✗"; } })();
     const advert = ns.corporation.getHireAdVertCount(div);
-    ns.print(`  Awareness:${divInfo.awareness.toFixed(0)}  Pop:${divInfo.popularity.toFixed(0)}  AdVert:${advert}  ${ssOk}`);
+    ns.print(`  Awareness:${divInfo.awareness.toFixed(0)}  Pop:${divInfo.popularity.toFixed(0)}  AdVert:${advert}  ${ssOk}  ${ta1Ok}`);
     ns.print(`  Research : ${ns.format.number(divInfo.researchPoints, 1)} pts`);
 
-    // Statut recherche
     const researchDone = RESEARCH_PRIORITY.filter(r => {
       try { return ns.corporation.hasResearched(div, r); } catch { return false; }
     });
@@ -278,23 +299,24 @@ function printDashboard(ns, corp, div, cities) {
     }
 
     ns.print(sep);
-    ns.print("  VILLE        Emp    WH    Food       Plants");
+    ns.print("  VILLE        Emp    WH     RE    Food      Plants");
     for (const city of cities) {
       try {
         const off    = ns.corporation.getOffice(div, city);
         const wh     = ns.corporation.getWarehouse(div, city);
+        const re     = ns.corporation.getMaterial(div, city, "Real Estate").qty;
         const food   = ns.corporation.getMaterial(div, city, "Food").qty;
         const plants = ns.corporation.getMaterial(div, city, "Plants").qty;
         ns.print(
           `  ${city.slice(0, 9).padEnd(9)}  ${String(off.numEmployees).padStart(2)}/${off.size}  ` +
           `${String(wh.size).padStart(4)}  ` +
-          `${ns.format.number(food, 1).padStart(7)}  ${ns.format.number(plants, 1)}`
+          `${ns.format.number(re, 0).padStart(6)}  ` +
+          `${ns.format.number(food, 1).padStart(6)}  ${ns.format.number(plants, 1)}`
         );
       } catch {}
     }
   } catch {}
 
-  // Offre d'investissement courante
   if (!corp.public) {
     try {
       const offer = ns.corporation.getInvestmentOffer();
