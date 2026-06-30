@@ -3,6 +3,9 @@ const DECAY = Array.from({ length: 25 }, (_, i) => Math.pow(0.65, i));
 // "--cheat" autorisé si Bitnode 14 terminé
 // run ipvgo.js --auto --new --loop --opponent "Netburners" --size 7  |  Hacknet
 // run ipvgo.js --auto --new --loop --opponent "Daedalus" --size 7  |  Reputation gain
+// run ipvgo.js --auto --new --loop --opponent "Slum Snakes" --size 7  |  crime success
+// run ipvgo.js --auto --new --loop --opponent "The Black Hand" --size 7  |  hacking money
+
 
 /** @param {NS} ns */
 export async function main(ns) {
