@@ -29,6 +29,12 @@ export async function main(ns) {
       // on tente de rooter
       await tryRoot(ns, host);
 
+      // Hacknet Server : sa RAM sert à générer des hashes, on n'y déploie rien.
+      if (host.startsWith("hacknet-server-")) {
+        ns.print(`[SKIP] ${host} génère des hashes, déploiement ignoré.`);
+        continue;
+      }
+
       // on déploie seulement si root
       if (ns.hasRootAccess(host)) {
         await deployHgwOn(ns, host, script);
