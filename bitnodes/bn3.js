@@ -55,6 +55,17 @@ export async function main(ns) {
   }
 }
 
+const JOB_ASSIGNMENTS = [
+  ["Operations", 2],
+  ["Engineer", 2],
+  ["Business", 1],
+  ["Management", 2],
+  ["Research & Development", 2],
+];
+
+// Villes déjà entièrement configurées (entrepôt + bureau + jobs) : on ne les retouche plus.
+const configuredCities = new Set();
+
 /** @param {NS} ns */
 function manageCorp(ns) {
   const corp = ns.corporation.getCorporation();
@@ -65,15 +76,23 @@ function manageCorp(ns) {
     return;
   }
 
-  // Acheter entrepôts + embaucher dans chaque ville (Agriculture)
+  // Acheter entrepôts + embaucher dans chaque ville (Agriculture), une seule fois par ville
   for (const city of CITIES) {
+    if (configuredCities.has(city)) continue;
+    let staffed = false;
+
     try {
       if (!ns.corporation.hasWarehouse("Agriculture", city)) {
         ns.corporation.purchaseWarehouse("Agriculture", city);
+      } else {
+        // Agrandir entrepôt si moins de 300 taille
+        const wh = ns.corporation.getWarehouse("Agriculture", city);
+        if (wh.size < 300) ns.corporation.upgradeWarehouse("Agriculture", city, 1);
+
+        // Vendre nourriture et plantes (uniquement une fois l'entrepôt en place)
+        ns.corporation.sellMaterial("Agriculture", city, "Food", "MAX", "MP");
+        ns.corporation.sellMaterial("Agriculture", city, "Plants", "MAX", "MP");
       }
-      // Agrandir entrepôt si moins de 300 taille
-      const wh = ns.corporation.getWarehouse("Agriculture", city);
-      if (wh.size < 300) ns.corporation.upgradeWarehouse("Agriculture", city, 1);
     } catch {}
 
     // Embaucher des employés
@@ -81,20 +100,16 @@ function manageCorp(ns) {
       const office = ns.corporation.getOffice("Agriculture", city);
       if (office.numEmployees < 9) {
         ns.corporation.expandOffice("Agriculture", city, 9 - office.numEmployees);
+      } else {
+        // Répartition emplois Agriculture (une seule fois, une fois le bureau plein)
+        for (const [job, count] of JOB_ASSIGNMENTS) {
+          ns.corporation.setAutoJobAssignment("Agriculture", city, job, count);
+        }
+        staffed = true;
       }
-      // Répartition emplois Agriculture
-      ns.corporation.setAutoJobAssignment("Agriculture", city, "Operations", 2);
-      ns.corporation.setAutoJobAssignment("Agriculture", city, "Engineer", 2);
-      ns.corporation.setAutoJobAssignment("Agriculture", city, "Business", 1);
-      ns.corporation.setAutoJobAssignment("Agriculture", city, "Management", 2);
-      ns.corporation.setAutoJobAssignment("Agriculture", city, "Research & Development", 2);
     } catch {}
 
-    // Vendre nourriture et plantes
-    try {
-      ns.corporation.sellMaterial("Agriculture", city, "Food", "MAX", "MP");
-      ns.corporation.sellMaterial("Agriculture", city, "Plants", "MAX", "MP");
-    } catch {}
+    if (staffed) configuredCities.add(city);
   }
 
   // Étape 2 : Division Chimie après Agriculture rentable
