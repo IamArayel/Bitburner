@@ -21,11 +21,11 @@ export async function main(ns) {
 
     launchCore(ns, 300);
 
-    const hasTix = ns.stock.hasTIXAPIAccess();
-    const has4s = ns.stock.has4SDataTIXAPI();
+    const hasTix = ns.stock.hasTixApiAccess();
+    const has4s = ns.stock.has4SDataTixApi();
 
     if (!hasTix && money >= TIX_COST) {
-      try { ns.stock.purchaseTix(); } catch {}
+      try { ns.stock.purchaseTixApi(); } catch {}
     }
     if (hasTix && !has4s && money >= 25_000_000_000) {
       try { ns.stock.purchase4SMarketDataTixApi(); } catch {}

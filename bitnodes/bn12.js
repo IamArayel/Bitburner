@@ -60,7 +60,7 @@ function detectAvailableMechanics(ns) {
     gang:        check(() => ns.gang.inGang()),
     corporation: check(() => ns.corporation.hasCorporation()),
     bladeburner: check(() => ns.bladeburner.inBladeburner()),
-    stocks:      check(() => ns.stock.hasTIXAPIAccess()),
+    stocks:      check(() => ns.stock.hasTixApiAccess()),
     hacknet:     check(() => ns.hacknet.numNodes()),
     sleeves:     check(() => ns.sleeve.getNumSleeves()),
     stanek:      check(() => ns.stanek.activeFragments()),
