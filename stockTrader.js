@@ -15,8 +15,8 @@ export async function main(ns) {
 
     const symbols = ns.stock.getSymbols();
     const canShort =
-        typeof ns.stock.shortStock === "function" &&
-        typeof ns.stock.sellShort  === "function";
+        typeof ns.stock.buyShort  === "function" &&
+        typeof ns.stock.sellShort === "function";
 
     ns.ui.resizeTail(480, 420);
 
@@ -161,7 +161,7 @@ function openBestShort(ns, symbols, data, cash, commission, maxForecast, cashToK
     );
     if (qty <= 0) return;
 
-    const execPrice = ns.stock.shortStock(bestSym, qty);
+    const execPrice = ns.stock.buyShort(bestSym, qty);
     if (execPrice > 0) {
         ns.print(`OPEN SHORT ${bestSym} | qté=${qty} | prix≈$${ns.format.number(execPrice, 2)}`);
     }
