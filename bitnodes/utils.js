@@ -85,7 +85,16 @@ export function launchCore(ns, xpThreshold = 300, buyServers = true) {
   launchOnce(ns, "deploy-hgw-all.js");
   if (buyServers) launchOnce(ns, "upgrade-servers.js");
   const hack = ns.getPlayer().skills.hacking;
-  if (hack < xpThreshold && !ns.scriptRunning("xp-manager.js", "home")) {
+  // xp-manager.js se termine dès qu'il a lancé les workers (il ne boucle pas) :
+  // scriptRunning("xp-manager.js") est donc quasi toujours faux. Il faut vérifier
+  // que les workers eux-mêmes tournent encore, sinon on les tue/relance en boucle
+  // à chaque appel de launchCore (toutes les 30s), coupant hack/grow/weaken en cours.
+  if (hack < xpThreshold && !isXpWorkerDeployed(ns)) {
     ns.run("xp-manager.js");
   }
+}
+
+/** @param {NS} ns @returns {boolean} */
+function isXpWorkerDeployed(ns) {
+  return getAllServers(ns).some(h => ns.hasRootAccess(h) && ns.scriptRunning("xp-worker.js", h));
 }
