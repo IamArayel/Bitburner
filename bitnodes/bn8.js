@@ -20,22 +20,26 @@ export async function main(ns) {
     const hack = player.skills.hacking;
     const money = player.money;
 
-    launchCore(ns, 300);
+    launchCore(ns, 300, false); // pas de pserv : argent du hacking = 0 en BN8, tout doit aller à la bourse
 
     // --- Marché boursier ---
-    const hasTix = ns.stock.hasTIXAPIAccess();
-    const has4s = ns.stock.has4SDataTIXAPI();
+    const hasTix = ns.stock.hasTixApiAccess();
+    const has4s = ns.stock.has4SDataTixApi();
 
     if (!hasTix && money >= TIX_COST) {
-      try { ns.stock.purchaseTix(); } catch {}
+      try { ns.stock.purchaseTixApi(); } catch {}
     }
 
     if (hasTix && !has4s && money >= WSAPI_COST) {
       try { ns.stock.purchase4SMarketDataTixApi(); } catch {}
     }
 
-    // Lancer le trader une fois que les APIs sont disponibles
-    if (hasTix && has4s) {
+    // Avant le 4S : forecast/volatilité estimés depuis l'historique (API indisponible)
+    // Après le 4S : bascule sur le trader classique (forecast/volatilité fournis par le jeu)
+    if (hasTix && !has4s) {
+      launchOnce(ns, "trade_bn8.js");
+    } else if (hasTix && has4s) {
+      if (ns.scriptRunning("trade_bn8.js", "home")) ns.scriptKill("trade_bn8.js", "home");
       launchOnce(ns, "stockTrader.js");
     }
 
@@ -45,7 +49,10 @@ export async function main(ns) {
     ns.print(`Money    : $${ns.format.number(money)}`);
     ns.print(`TIX API  : ${hasTix ? "OK" : `Non ($${ns.format.number(TIX_COST)} requis)`}`);
     ns.print(`4S Data  : ${has4s ? "OK" : `Non ($${ns.format.number(WSAPI_COST)} requis)`}`);
-    ns.print(`Trader   : ${ns.scriptRunning("stockTrader.js", "home") ? "Actif" : "Inactif"}`);
+    let traderStatus = "Inactif";
+    if (ns.scriptRunning("stockTrader.js", "home")) traderStatus = "stockTrader (4S)";
+    else if (ns.scriptRunning("trade_bn8.js", "home")) traderStatus = "trade_bn8 (estimé)";
+    ns.print(`Trader   : ${traderStatus}`);
 
     if (hasTix) {
       const portfolio = getPortfolioValue(ns);
