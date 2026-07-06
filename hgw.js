@@ -11,8 +11,15 @@ export async function main(ns) {
 
   const minSec = ns.getServerMinSecurityLevel(target);
   const maxMoney = ns.getServerMaxMoney(target);
+  const reqLevel = ns.getServerRequiredHackingLevel(target);
 
   while (true) {
+    if (ns.getHackingLevel() < reqLevel) {
+      ns.tprint(`WARN: hack skill too low for ${target} (need ${reqLevel}). Waiting...`);
+      await ns.sleep(10000);
+      continue;
+    }
+
     // 1) Sécurité minimale
     while (ns.getServerSecurityLevel(target) > minSec) {
       await ns.weaken(target);

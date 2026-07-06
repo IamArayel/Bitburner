@@ -20,7 +20,7 @@ export async function main(ns) {
     const hack = player.skills.hacking;
     const money = player.money;
 
-    launchCore(ns, 300, false); // pas de pserv : argent du hacking = 0 en BN8, tout doit aller à la bourse
+    launchCore(ns, Infinity, false); // pas de pserv, jamais de hgw : argent du hacking = 0 en BN8, xp-worker doit garder toute la RAM
 
     // --- Marché boursier ---
     const hasTix = ns.stock.hasTixApiAccess();
