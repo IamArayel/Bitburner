@@ -3,7 +3,7 @@
  * Mécanique clé : créer un Gang (karma ≤ −54 000) pour revenus + territoire
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { rootAllServers, getBestTarget, launchOnce, launchCore, tryRoot } from "bitnodes/utils.js";
+import { rootAllServers, getBestTarget, launchOnce, launchCore, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 const GANG_FACTION = "Slum Snakes"; // faction criminelle la plus accessible
@@ -54,6 +54,8 @@ export async function main(ns) {
     } else {
       ns.print(`Gang   : Non créé — ${karma > KARMA_REQUIRED ? "commits des crimes!" : "karma OK, rejoins " + GANG_FACTION}`);
     }
+
+    printFinalConditions(ns, FINAL);
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
       ns.print(`\n>>> Backdoor ${FINAL}...`);

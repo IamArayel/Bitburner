@@ -2,7 +2,7 @@
  * BN1 — Source Genesis
  * Stratégie standard : farm HGW → upgrade serveurs → hack 3000 → backdoor w0r1d_d43m0n
  */
-import { rootAllServers, getBestTarget, launchOnce, launchCore, tryRoot } from "bitnodes/utils.js";
+import { rootAllServers, getBestTarget, launchOnce, launchCore, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 
@@ -35,6 +35,8 @@ export async function main(ns) {
     if (hack >= 50 && money > 500_000 && !ns.fileExists("BruteSSH.exe", "home")) {
       ns.print(">> Connectez-vous à darkweb et achetez BruteSSH.exe");
     }
+
+    printFinalConditions(ns, FINAL);
 
     if (hack >= 3000) {
       const rooted = tryRoot(ns, FINAL);

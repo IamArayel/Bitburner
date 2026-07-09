@@ -4,7 +4,7 @@
  * Automatise : achats programmes, factions, augmentations, soft-reset
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { rootAllServers, launchOnce, tryRoot, getConnectPath } from "bitnodes/utils.js";
+import { rootAllServers, launchOnce, tryRoot, getConnectPath, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 
@@ -76,6 +76,7 @@ export async function main(ns) {
     ns.print(`Money      : $${ns.format.number(money)}`);
     ns.print(`Augments   : ${installed} installées / ${owned.length} possédées`);
     ns.print(`Focus      : ${focus}`);
+    printFinalConditions(ns, FINAL);
 
     await ns.sleep(20_000);
   }

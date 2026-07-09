@@ -4,7 +4,7 @@
  * Le trading est la source de revenu principale
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { launchCore, launchOnce, tryRoot } from "bitnodes/utils.js";
+import { launchCore, launchOnce, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 const TIX_COST = 5_000_000_000;       // $5B
@@ -59,9 +59,13 @@ export async function main(ns) {
       ns.print(`Portfolio: $${ns.format.number(portfolio)}`);
     }
 
+    printFinalConditions(ns, FINAL);
+
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
       ns.print(`\n>>> Backdoor ${FINAL}...`);
-      // Vendre les positions avant la fin du bitnode
+      // Tuer le trader avant de vendre, sinon il rachète pendant que stockSeller liquide
+      if (ns.scriptRunning("stockTrader.js", "home")) ns.scriptKill("stockTrader.js", "home");
+      if (ns.scriptRunning("trade_bn8.js", "home")) ns.scriptKill("trade_bn8.js", "home");
       launchOnce(ns, "stockSeller.js");
       await ns.sleep(10_000);
       launchOnce(ns, "auto-backdoor.js");

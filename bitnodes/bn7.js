@@ -4,7 +4,7 @@
  * Nécessite plus de rang BB et stats plus élevées avant d'entreprendre les opérations
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { launchCore, launchOnce, rootAllServers, tryRoot } from "bitnodes/utils.js";
+import { launchCore, launchOnce, rootAllServers, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 
@@ -53,6 +53,8 @@ export async function main(ns) {
       ns.print(`Stamina: ${(stam / maxStam * 100).toFixed(0)}%`);
       ns.print(`Action : ${action.type} — ${action.name}`);
     }
+
+    printFinalConditions(ns, FINAL);
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
       ns.print(`\n>>> Backdoor ${FINAL}...`);

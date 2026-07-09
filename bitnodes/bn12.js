@@ -5,7 +5,7 @@
  * et lance le script correspondant ou la meilleure stratégie.
  * Objectif final : backdoor w0r1d_d43m0n (dans chaque sous-bitnode visité)
  */
-import { launchCore, launchOnce, tryRoot, getAllServers } from "bitnodes/utils.js";
+import { launchCore, launchOnce, tryRoot, getAllServers, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 
@@ -29,6 +29,8 @@ export async function main(ns) {
   if (available.stocks)      ns.print("  → run bitnodes/bn8.js  (Stocks)");
   if (available.hacknet)     ns.print("  → run bitnodes/bn9.js  (Hacknet)");
   if (available.singularity) ns.print("  → run bitnodes/bn4.js  (Singularity)");
+
+  printFinalConditions(ns, FINAL);
 
   ns.print("\nLancement du core + stratégie optimale détectée...");
   await ns.sleep(5_000);

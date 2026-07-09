@@ -4,7 +4,7 @@
  * puis s'effondrent. Utiliser les positions SHORT pendant la chute.
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { launchCore, launchOnce, tryRoot } from "bitnodes/utils.js";
+import { launchCore, launchOnce, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 const TIX_COST = 5_000_000_000;
@@ -49,8 +49,12 @@ export async function main(ns) {
       ns.print(`Portfolio: $${ns.format.number(market.portfolioValue)}`);
     }
 
+    printFinalConditions(ns, FINAL);
+
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
       ns.print(`\n>>> Vente positions + Backdoor ${FINAL}...`);
+      // Tuer le trader avant de vendre, sinon il rachète pendant que stockSeller liquide
+      if (ns.scriptRunning("stockTrader.js", "home")) ns.scriptKill("stockTrader.js", "home");
       launchOnce(ns, "stockSeller.js");
       await ns.sleep(5_000);
       launchOnce(ns, "auto-backdoor.js");

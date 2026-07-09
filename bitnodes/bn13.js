@@ -4,7 +4,7 @@
  * Les fragments chargés améliorent hack, combat, argent, etc.
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { launchCore, launchOnce, tryRoot } from "bitnodes/utils.js";
+import { launchCore, launchOnce, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 
@@ -46,6 +46,8 @@ export async function main(ns) {
     for (const f of frags) {
       ns.print(`  [${f.id}] (${f.x},${f.y}) charge: ${f.numCharge} | bonus: x${f.highestCharge.toFixed(2)}`);
     }
+
+    printFinalConditions(ns, FINAL);
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
       ns.print(`\n>>> Backdoor ${FINAL}...`);

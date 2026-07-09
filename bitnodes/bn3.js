@@ -4,7 +4,7 @@
  * En BN3, selfFund=false utilise les fonds de démarrage du bitnode (~$150B)
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { launchCore, launchOnce, tryRoot } from "bitnodes/utils.js";
+import { launchCore, launchOnce, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 const CORP_NAME = "MegaCorp";
@@ -45,6 +45,8 @@ export async function main(ns) {
       ns.print(`Revenue: $${ns.format.number(corp.revenue)}/s`);
       ns.print(`Divisions: ${corp.divisions.length > 0 ? corp.divisions.join(", ") : "aucune"}`);
     }
+
+    printFinalConditions(ns, FINAL);
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
       ns.print(`\n>>> Backdoor ${FINAL}...`);

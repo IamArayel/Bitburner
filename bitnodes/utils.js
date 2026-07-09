@@ -72,6 +72,27 @@ export function getConnectPath(ns, target) {
   return [];
 }
 
+const FINAL_PROGRAMS = ["BruteSSH.exe", "FTPCrack.exe", "relaySMTP.exe", "HTTPWorm.exe", "SQLInject.exe"];
+
+/** Affiche les conditions nécessaires pour finaliser le bitnode (backdoor de la cible finale).
+ * @param {NS} ns @param {string} target */
+export function printFinalConditions(ns, target) {
+  const hack = ns.getPlayer().skills.hacking;
+  const hackOk = hack >= 3000;
+  const owned = FINAL_PROGRAMS.filter(p => ns.fileExists(p, "home"));
+  const progOk = owned.length === FINAL_PROGRAMS.length;
+  const rootOk = ns.hasRootAccess(target);
+  let backdoorOk = false;
+  try { backdoorOk = ns.getServer(target).backdoorInstalled; } catch {}
+
+  ns.print("");
+  ns.print("--- Conditions de fin ---");
+  ns.print(`${hackOk ? "✅" : "❌"} Hack ≥ 3000 (${hack})`);
+  ns.print(`${progOk ? "✅" : "❌"} 5 programmes (${owned.length}/5)`);
+  ns.print(`${rootOk ? "✅" : "❌"} Root sur ${target}`);
+  ns.print(`${backdoorOk ? "✅" : "❌"} Backdoor installé`);
+}
+
 /** Retourne le numéro du Bitnode actuel.
  * @param {NS} ns @returns {number} */
 export function getCurrentBN(ns) {

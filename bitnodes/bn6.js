@@ -4,7 +4,7 @@
  * Monter en rang Bladeburner + gagner assez pour acheter les programmes
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { launchCore, launchOnce, rootAllServers, tryRoot } from "bitnodes/utils.js";
+import { launchCore, launchOnce, rootAllServers, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 
@@ -56,6 +56,8 @@ export async function main(ns) {
     } else {
       ns.print("Bladeburner: Non rejoint");
     }
+
+    printFinalConditions(ns, FINAL);
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
       ns.print(`\n>>> Backdoor ${FINAL}...`);

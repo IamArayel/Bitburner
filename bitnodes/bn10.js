@@ -4,7 +4,7 @@
  * Synchroniser les sleeves, réduire le choc, puis les affecter aux meilleures tâches
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { launchCore, launchOnce, tryRoot } from "bitnodes/utils.js";
+import { launchCore, launchOnce, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 
@@ -37,6 +37,8 @@ export async function main(ns) {
       const taskName = task ? `${task.type}${task.crimeType ? " (" + task.crimeType + ")" : ""}` : "Idle";
       ns.print(`  [${i}] Sync:${sl.sync.toFixed(0)}% Choc:${sl.shock.toFixed(0)}% → ${taskName}`);
     }
+
+    printFinalConditions(ns, FINAL);
 
     if (hack >= 3000 && tryRoot(ns, FINAL)) {
       ns.print(`\n>>> Backdoor ${FINAL}...`);
