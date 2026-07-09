@@ -55,13 +55,26 @@ export async function main(ns) {
       ns.print(`\n>>> Vente positions + Backdoor ${FINAL}...`);
       // Tuer le trader avant de vendre, sinon il rachète pendant que stockSeller liquide
       if (ns.scriptRunning("stockTrader.js", "home")) ns.scriptKill("stockTrader.js", "home");
-      launchOnce(ns, "stockSeller.js");
-      await ns.sleep(5_000);
+      if (hasOpenPositions(ns)) {
+        launchOnce(ns, "stockSeller.js");
+        await ns.sleep(5_000);
+      }
       launchOnce(ns, "auto-backdoor.js");
     }
 
     await ns.sleep(30_000);
   }
+}
+
+/** @param {NS} ns @returns {boolean} */
+function hasOpenPositions(ns) {
+  try {
+    for (const sym of ns.stock.getSymbols()) {
+      const [long, , short] = ns.stock.getPosition(sym);
+      if (long > 0 || short > 0) return true;
+    }
+  } catch {}
+  return false;
 }
 
 /** @param {NS} ns @returns {{ state: string, rising: number, falling: number, portfolioValue: number }} */
