@@ -103,7 +103,7 @@ export function getCurrentBN(ns) {
 
 /** Lance les scripts de base communs à tous les bitnodes.
  * @param {NS} ns @param {number} xpThreshold @param {boolean} buyServers achat de pserv (inutile si l'argent du hacking ne rapporte rien, ex. BN8) */
-export function launchCore(ns, xpThreshold = 300, buyServers = true) {
+export function launchCore(ns, xpThreshold = 300, buyServers = false) {
   rootAllServers(ns);
   if (buyServers) launchOnce(ns, "upgrade-servers.js");
   const hack = ns.getPlayer().skills.hacking;

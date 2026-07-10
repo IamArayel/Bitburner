@@ -31,7 +31,6 @@ export async function main(ns) {
 
     rootAllServers(ns);
     launchOnce(ns, "deploy-hgw-all.js");
-    launchOnce(ns, "upgrade-servers.js");
 
     if (hack < 300 && !ns.scriptRunning("xp-manager.js", "home")) {
       ns.run("xp-manager.js");

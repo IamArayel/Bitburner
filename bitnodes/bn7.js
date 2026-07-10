@@ -4,7 +4,7 @@
  * Nécessite plus de rang BB et stats plus élevées avant d'entreprendre les opérations
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { launchCore, launchOnce, rootAllServers, tryRoot, printFinalConditions } from "bitnodes/utils.js";
+import { launchOnce, rootAllServers, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 
@@ -20,7 +20,6 @@ export async function main(ns) {
 
     rootAllServers(ns);
     launchOnce(ns, "deploy-hgw-all.js");
-    launchOnce(ns, "upgrade-servers.js");
 
     if (!ns.bladeburner.inBladeburner()) {
       // Seuil plus élevé qu'en BN6 à cause des multiplicateurs
