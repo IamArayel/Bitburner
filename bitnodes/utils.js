@@ -14,6 +14,7 @@ export function getAllServers(ns) {
 
 /** @param {NS} ns @param {string} host @returns {boolean} */
 export function tryRoot(ns, host) {
+  if (!ns.serverExists(host)) return false;
   if (ns.hasRootAccess(host)) return true;
   if (ns.fileExists("BruteSSH.exe", "home")) ns.brutessh(host);
   if (ns.fileExists("FTPCrack.exe", "home")) ns.ftpcrack(host);
@@ -81,9 +82,10 @@ export function printFinalConditions(ns, target) {
   const hackOk = hack >= 3000;
   const owned = FINAL_PROGRAMS.filter(p => ns.fileExists(p, "home"));
   const progOk = owned.length === FINAL_PROGRAMS.length;
-  const rootOk = ns.hasRootAccess(target);
+  const exists = ns.serverExists(target);
+  const rootOk = exists && ns.hasRootAccess(target);
   let backdoorOk = false;
-  try { backdoorOk = ns.getServer(target).backdoorInstalled; } catch {}
+  if (exists) { try { backdoorOk = ns.getServer(target).backdoorInstalled; } catch {} }
 
   ns.print("");
   ns.print("--- Conditions de fin ---");

@@ -1,13 +1,16 @@
 /**
  * BN2 — Rise of the Underworld
- * Mécanique clé : créer un Gang (karma ≤ −54 000) pour revenus + territoire
+ * Mécanique clé : créer un Gang pour revenus + territoire
+ * Spécifique à BN2 : pas de seuil de karma pour créer le gang (contrairement aux
+ * autres bitnodes avec SF2), il suffit d'avoir rejoint une faction criminelle.
+ * SF4 possédé → Singularity toujours dispo pour automatiser crimes/faction.
  * Objectif final : backdoor w0r1d_d43m0n
  */
-import { rootAllServers, getBestTarget, launchOnce, launchCore, tryRoot, printFinalConditions } from "bitnodes/utils.js";
+import { launchOnce, launchCore, tryRoot, printFinalConditions } from "bitnodes/utils.js";
 
 const FINAL = "w0r1d_d43m0n";
 const GANG_FACTION = "Slum Snakes"; // faction criminelle la plus accessible
-const KARMA_REQUIRED = -54_000;
+const FACTION_KARMA_REQUIRED = -9; // karma requis pour l'invitation Slum Snakes
 const MAX_MEMBERS = 12;
 
 /** @param {NS} ns */
@@ -24,18 +27,17 @@ export async function main(ns) {
     launchCore(ns, 300);
 
     // --- Gestion du gang ---
+    const inFaction = player.factions.includes(GANG_FACTION);
     if (!inGang) {
-      if (karma > KARMA_REQUIRED) {
-        // Essayer les crimes automatiquement si Singularity dispo
-        if (ns.singularity) {
+      if (!inFaction) {
+        const invited = ns.singularity.checkFactionInvitations();
+        if (invited.includes(GANG_FACTION)) {
+          try { ns.singularity.joinFaction(GANG_FACTION); } catch {}
+        } else if (karma > FACTION_KARMA_REQUIRED) {
           try { ns.singularity.commitCrime("Mug Someone", false); } catch {}
         }
       } else {
-        try {
-          ns.gang.createGang(GANG_FACTION);
-        } catch {
-          // Pas encore membre de la faction — karma ok mais facton à rejoindre
-        }
+        try { ns.gang.createGang(GANG_FACTION); } catch {}
       }
     } else {
       manageGang(ns);
@@ -45,14 +47,16 @@ export async function main(ns) {
     ns.print("=== BN2 : Rise of the Underworld ===");
     ns.print(`Hack   : ${hack} / 3000`);
     ns.print(`Money  : $${ns.format.number(player.money)}`);
-    ns.print(`Karma  : ${karma.toFixed(0)} / ${KARMA_REQUIRED}`);
+    ns.print(`Karma  : ${karma.toFixed(0)} (invitation ${GANG_FACTION} à ${FACTION_KARMA_REQUIRED})`);
 
     if (inGang) {
       const info = ns.gang.getGangInformation();
       ns.print(`Gang   : ${info.faction} — Power: ${info.power.toFixed(0)}`);
       ns.print(`Territoire: ${(info.territory * 100).toFixed(1)}%  Membres: ${ns.gang.getMemberNames().length}/${MAX_MEMBERS}`);
+    } else if (inFaction) {
+      ns.print(`Gang   : Non créé — membre de ${GANG_FACTION}, création en cours`);
     } else {
-      ns.print(`Gang   : Non créé — ${karma > KARMA_REQUIRED ? "commits des crimes!" : "karma OK, rejoins " + GANG_FACTION}`);
+      ns.print(`Gang   : Non créé — ${karma > FACTION_KARMA_REQUIRED ? "commits des crimes pour l'invitation" : "invitation en attente"}`);
     }
 
     printFinalConditions(ns, FINAL);

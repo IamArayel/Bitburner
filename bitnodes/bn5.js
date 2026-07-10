@@ -33,9 +33,7 @@ export async function main(ns) {
           bbJoinError = String(e);
         }
       } else {
-        if (ns.singularity) {
-          try { ns.singularity.gymWorkout("Powerhouse Gym", "Strength", false); } catch {}
-        }
+        try { ns.singularity.gymWorkout("Powerhouse Gym", "Strength", false); } catch {}
       }
     } else {
       manageBladeburner(ns);

@@ -23,10 +23,10 @@ export async function main(ns) {
     launchOnce(ns, "xp-manager.js --xp");
     //launchOnce(ns, "upgrade-servers.js");
 
-    // Gym pour stats combat si Singularity dispo
+    // Gym pour stats combat (Singularity toujours dispo, SF4 possédé)
     if (!ns.bladeburner.inBladeburner()) {
       const need = s.strength < 100 || s.defense < 100 || s.dexterity < 100 || s.agility < 100;
-      if (need && ns.singularity) {
+      if (need) {
         const stat = s.strength <= s.defense && s.strength <= s.dexterity && s.strength <= s.agility
           ? "Strength" : s.defense <= s.dexterity && s.defense <= s.agility ? "Defense"
           : s.dexterity <= s.agility ? "Dexterity" : "Agility";
