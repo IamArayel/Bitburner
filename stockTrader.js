@@ -14,9 +14,7 @@ export async function main(ns) {
     const SHORT_MAX_LOSS_RATIO       = 0.05;
 
     const symbols = ns.stock.getSymbols();
-    const canShort =
-        typeof ns.stock.buyShort  === "function" &&
-        typeof ns.stock.sellShort === "function";
+    const canShort = hasShortAccess(ns);
 
     ns.ui.resizeTail(480, 420);
 
@@ -164,6 +162,18 @@ function openBestShort(ns, symbols, data, cash, commission, maxForecast, cashToK
     const execPrice = ns.stock.buyShort(bestSym, qty);
     if (execPrice > 0) {
         ns.print(`OPEN SHORT ${bestSym} | qté=${qty} | prix≈$${ns.format.number(execPrice, 2)}`);
+    }
+}
+
+// short (buyShort/sellShort) requiert BitNode-8 ou SF8 niveau 2 : présentes sur
+// ns.stock même sans le prérequis, donc typeof ne suffit pas, il faut vérifier le SF.
+function hasShortAccess(ns) {
+    if (ns.getResetInfo().currentNode === 8) return true;
+    try {
+        const sf8 = ns.singularity.getOwnedSourceFiles().find(s => s.n === 8);
+        return (sf8?.lvl ?? 0) >= 2;
+    } catch {
+        return false;
     }
 }
 
