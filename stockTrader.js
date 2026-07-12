@@ -53,8 +53,9 @@ export async function main(ns) {
         totalPnl += loopPnl;
 
         const unrealized = calcUnrealized(symbols, data);
+        const invested   = calcInvested(symbols, data);
         printDashboard(ns, symbols, data, totalPnl, unrealized, loopPnl);
-        updateOverview(ns, totalPnl, unrealized);
+        updateOverview(ns, totalPnl, invested, cash);
 
         await ns.sleep(SLEEP_TIME);
     }
@@ -189,6 +190,15 @@ function calcUnrealized(symbols, data) {
     return total;
 }
 
+function calcInvested(symbols, data) {
+    let total = 0;
+    for (const sym of symbols) {
+        const [longShares, longAvg, shortShares, shortAvg] = data[sym].pos;
+        total += longShares * longAvg + shortShares * shortAvg;
+    }
+    return total;
+}
+
 function fmt(ns, n) {
     const s = ns.format.number(n, 2);
     return (n >= 0 ? "+" : "") + "$" + s;
@@ -233,20 +243,20 @@ function printDashboard(ns, symbols, data, realized, unrealized, loopPnl) {
     ns.ui.setTailTitle(`Stock Trader | Total: ${fmt(ns, total)}`);
 }
 
-function updateOverview(ns, realized, unrealized) {
+function updateOverview(ns, realized, invested, cash) {
     try {
         const doc   = eval("document");
         const hook0 = doc.getElementById("overview-extra-hook-0");
         const hook1 = doc.getElementById("overview-extra-hook-1");
         if (!hook0 || !hook1) return;
-        const total = realized + unrealized;
-        const color = total >= 0 ? "#4caf50" : "#f44336";
-        hook0.dataset.traderRealized   = "Stock réalisé";
-        hook0.dataset.traderUnrealized = "Stock latent";
-        hook0.dataset.traderTotal      = "Stock total";
-        hook1.dataset.traderRealized   = `$${ns.format.number(realized, 2)}`;
-        hook1.dataset.traderUnrealized = `$${ns.format.number(unrealized, 2)}`;
-        hook1.dataset.traderTotal      = `<strong style="color:${color}">$${ns.format.number(total, 2)}</strong>`;
+        const total = cash + invested;
+        const color = realized >= 0 ? "#4caf50" : "#f44336";
+        hook0.dataset.traderRealized = "Bénéfice";
+        hook0.dataset.traderInvested = "Misé";
+        hook0.dataset.traderTotal    = "$ TOTAL";
+        hook1.dataset.traderRealized = `<strong style="color:${color}">$${ns.format.number(realized, 2)}</strong>`;
+        hook1.dataset.traderInvested = `$${ns.format.number(invested, 2)}`;
+        hook1.dataset.traderTotal    = `$${ns.format.number(total, 2)}`;
         renderHooks(hook0, hook1);
     } catch (_) {}
 }
@@ -257,7 +267,7 @@ function clearOverview() {
         const hook0 = doc.getElementById("overview-extra-hook-0");
         const hook1 = doc.getElementById("overview-extra-hook-1");
         if (!hook0 || !hook1) return;
-        for (const k of ["traderRealized", "traderUnrealized", "traderTotal"]) {
+        for (const k of ["traderRealized", "traderInvested", "traderTotal"]) {
             delete hook0.dataset[k];
             delete hook1.dataset[k];
         }
