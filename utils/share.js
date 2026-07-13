@@ -1,4 +1,4 @@
-// share.js
+// utils/share.js
 /** @param {NS} ns **/
 export async function main(ns) {
   while (true) {

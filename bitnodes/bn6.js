@@ -21,7 +21,7 @@ export async function main(ns) {
     // Hacking farm minimal pour revenus
     rootAllServers(ns);
     launchOnce(ns, "xp-manager.js --xp");
-    //launchOnce(ns, "upgrade-servers.js");
+    //launchOnce(ns, "utils/upgrade-servers.js");
 
     // Gym pour stats combat (Singularity toujours dispo, SF4 possédé)
     if (!ns.bladeburner.inBladeburner()) {

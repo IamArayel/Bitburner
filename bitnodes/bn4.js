@@ -30,7 +30,7 @@ export async function main(ns) {
     const money = player.money;
 
     rootAllServers(ns);
-    launchOnce(ns, "deploy-hgw-all.js");
+    launchOnce(ns, "utils/deploy-hgw-all.js");
 
     if (hack < 300 && !ns.scriptRunning("xp-manager.js", "home")) {
       ns.run("xp-manager.js");

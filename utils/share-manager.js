@@ -1,8 +1,8 @@
-// file: share-manager.js
+// file: utils/share-manager.js
 // Usage :
-//   run share-manager.js                       // sans faction, réserve 2 Go
-//   run share-manager.js "CyberSec"            // travaille pour la faction si Singularity dispo
-//   run share-manager.js "CyberSec" 4 8000     // réserve=4 Go, check toutes 8 s
+//   run utils/share-manager.js                       // sans faction, réserve 2 Go
+//   run utils/share-manager.js "CyberSec"            // travaille pour la faction si Singularity dispo
+//   run utils/share-manager.js "CyberSec" 4 8000     // réserve=4 Go, check toutes 8 s
 //
 // Comportement :
 // - N'impacte PAS vos autres scripts (ne tue que SES PROPRES instances share.js taguées)
@@ -21,7 +21,7 @@ export async function main(ns) {
   if (Number.isNaN(intervalMs) || intervalMs < 500) return void ns.tprint("Paramètre 'intervalMs' invalide (>= 500).");
 
   const host = "home";
-  const script = "share.js";
+  const script = "utils/share.js";
 
   if (!ns.fileExists(script, host)) {
     ns.tprint(`Erreur : ${script} est introuvable sur ${host}. Copiez-le d'abord.`);

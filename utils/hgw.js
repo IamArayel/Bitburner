@@ -1,4 +1,4 @@
-// file: hgw.js
+// file: utils/hgw.js
 /** @param {NS} ns **/
 export async function main(ns) {
   const target = ns.args[0];

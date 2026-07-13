@@ -1,8 +1,8 @@
-// deploy.js
+// utils/deploy.js
 /** @param {NS} ns **/
 export async function main(ns) {
   const [host, script, ...args] = ns.args;
-  if (!host || !script) return ns.tprint('Usage: run deploy.js <host_cible> <script.js> <target>');
+  if (!host || !script) return ns.tprint('Usage: run utils/deploy.js <host_cible> <script.js> <target>');
 
   // 1) copier le script sur la cible
   await ns.scp(script, host); // copie depuis home -> host

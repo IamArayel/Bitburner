@@ -1,10 +1,10 @@
 /**
- * add-password-darknet.js — Enregistre manuellement un mot de passe darknet.
+ * utils/add-password-darknet.js — Enregistre manuellement un mot de passe darknet.
  *
  * Usage :
- *   run add-password-darknet.js <hostname> <password>
- *   run add-password-darknet.js --list
- *   run add-password-darknet.js --delete <hostname>
+ *   run utils/add-password-darknet.js <hostname> <password>
+ *   run utils/add-password-darknet.js --list
+ *   run utils/add-password-darknet.js --delete <hostname>
  *
  * Le fichier est synchronisé vers darkweb automatiquement.
  */
@@ -31,7 +31,7 @@ export async function main(ns) {
 
   if (args[0] === "--delete") {
     const host = String(args[1] ?? "");
-    if (!host) { ns.tprint("Usage: run add-password-darknet.js --delete <hostname>"); return; }
+    if (!host) { ns.tprint("Usage: run utils/add-password-darknet.js --delete <hostname>"); return; }
     const db = load(ns);
     if (host in db) {
       delete db[host];
@@ -44,9 +44,9 @@ export async function main(ns) {
   }
 
   if (args.length < 2) {
-    ns.tprint("Usage : run add-password-darknet.js <hostname> <password>");
-    ns.tprint("        run add-password-darknet.js --list");
-    ns.tprint("        run add-password-darknet.js --delete <hostname>");
+    ns.tprint("Usage : run utils/add-password-darknet.js <hostname> <password>");
+    ns.tprint("        run utils/add-password-darknet.js --list");
+    ns.tprint("        run utils/add-password-darknet.js --delete <hostname>");
     return;
   }
 

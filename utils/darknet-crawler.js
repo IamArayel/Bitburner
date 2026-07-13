@@ -1,11 +1,11 @@
 /**
- * darknet-crawler.js — Explorateur BFS du Dark Net (BN5)
+ * utils/darknet-crawler.js — Explorateur BFS du Dark Net (BN5)
  *
  * Prérequis : DarkscapeNavigator.exe
  *   → terminal : `buy DarkscapeNavigator.exe` (TOR requis)
  *   → ou acheter à Chongqing
  *
- * Lancer depuis home : run darknet-crawler.js
+ * Lancer depuis home : run utils/darknet-crawler.js
  * Traverse le réseau darknet en BFS via connectToSession — pas de spread.
  *
  * Fichiers :

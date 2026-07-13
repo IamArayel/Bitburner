@@ -1,18 +1,18 @@
 /**
- * darknet-seed.js — Script ultra-léger de propagation darknet
+ * utils/darknet-seed.js — Script ultra-léger de propagation darknet
  *
  * Conçu pour tourner sur des serveurs avec peu de RAM (comme darkweb).
  * Son seul rôle : s'authentifier + déployer le crawler complet.
- * Le crawler complet (darknet-crawler.js) gère l'exploitation.
+ * Le crawler complet (utils/darknet-crawler.js) gère l'exploitation.
  *
  * Lancer manuellement sur darkweb :
  *   connect darkweb
- *   run darknet-seed.js
+ *   run utils/darknet-seed.js
  *   home
  */
 
-const SEED    = "darknet-seed.js";
-const CRAWLER = "darknet-crawler.js";
+const SEED    = "utils/darknet-seed.js";
+const CRAWLER = "utils/darknet-crawler.js";
 const PW_FILE = "darknet-passwords.json";
 
 /** @param {NS} ns */

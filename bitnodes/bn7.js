@@ -19,7 +19,7 @@ export async function main(ns) {
     const s = player.skills;
 
     rootAllServers(ns);
-    launchOnce(ns, "deploy-hgw-all.js");
+    launchOnce(ns, "utils/deploy-hgw-all.js");
 
     if (!ns.bladeburner.inBladeburner()) {
       // Seuil plus élevé qu'en BN6 à cause des multiplicateurs

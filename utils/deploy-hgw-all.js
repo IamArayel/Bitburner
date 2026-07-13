@@ -1,8 +1,8 @@
-// file: deploy-hgw-all.js
-// À lancer depuis home UNE FOIS que hgw.js est sur home
+// file: utils/deploy-hgw-all.js
+// À lancer depuis home UNE FOIS que utils/hgw.js est sur home
 /** @param {NS} ns **/
 export async function main(ns) {
-  const script = "hgw.js";
+  const script = "utils/hgw.js";
 
   if (!ns.fileExists(script, "home")) {
     ns.tprint(`Erreur : le script ${script} doit exister sur home.`);

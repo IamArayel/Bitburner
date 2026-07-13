@@ -1,4 +1,4 @@
-// file: upgrade-servers.js
+// file: utils/upgrade-servers.js
 
 /** @param {NS} ns **/
 export async function main(ns) {

@@ -1,6 +1,6 @@
 /** @param {NS} ns **/
 export async function main(ns) {
-  const workerScript = "xp-worker.js";
+  const workerScript = "utils/xp-worker.js";
   const mode         = (ns.args[0] ?? "xp").toLowerCase(); // ajouter "xp" ou "money" suivant le but des workers
   const HOME_RESERVE = 32; // GB réservés sur home pour autres scripts
 

@@ -105,7 +105,7 @@ export function getCurrentBN(ns) {
  * @param {NS} ns @param {number} xpThreshold @param {boolean} buyServers achat de pserv (inutile si l'argent du hacking ne rapporte rien, ex. BN8) */
 export function launchCore(ns, xpThreshold = 300, buyServers = false) {
   rootAllServers(ns);
-  if (buyServers) launchOnce(ns, "upgrade-servers.js");
+  if (buyServers) launchOnce(ns, "utils/upgrade-servers.js");
   const hack = ns.getPlayer().skills.hacking;
   if (hack < xpThreshold) {
     // xp-manager.js se termine dès qu'il a lancé les workers (il ne boucle pas) :
@@ -115,11 +115,11 @@ export function launchCore(ns, xpThreshold = 300, buyServers = false) {
     // Sous le seuil, hgw ne doit jamais tourner : xp-worker garde toute la RAM.
     if (!isXpWorkerDeployed(ns)) ns.run("xp-manager.js");
   } else {
-    launchOnce(ns, "deploy-hgw-all.js");
+    launchOnce(ns, "utils/deploy-hgw-all.js");
   }
 }
 
 /** @param {NS} ns @returns {boolean} */
 function isXpWorkerDeployed(ns) {
-  return getAllServers(ns).some(h => ns.hasRootAccess(h) && ns.scriptRunning("xp-worker.js", h));
+  return getAllServers(ns).some(h => ns.hasRootAccess(h) && ns.scriptRunning("utils/xp-worker.js", h));
 }
