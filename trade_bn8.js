@@ -35,9 +35,7 @@ export async function main(ns) {
     const SHORT_CLOSE_FORECAST = 0.46;
 
     const symbols = ns.stock.getSymbols();
-    const canShort =
-        typeof ns.stock.buyShort  === "function" &&
-        typeof ns.stock.sellShort === "function";
+    const canShort = hasShortAccess(ns);
 
     ns.ui.resizeTail(520, 460);
 
@@ -47,6 +45,7 @@ export async function main(ns) {
     ns.atExit(() => {
         saveHistory(ns, HISTORY_FILE, history);
         ns.tprint(`[TRADE_BN8] PnL total réalisé : $${ns.format.number(totalPnl, 2)}`);
+        clearOverview();
     });
 
     while (true) {
@@ -86,7 +85,9 @@ export async function main(ns) {
         totalPnl += loopPnl;
 
         const unrealized = calcUnrealized(symbols, data);
+        const invested   = calcInvested(symbols, data);
         printDashboard(ns, symbols, data, totalPnl, unrealized, loopPnl, MIN_SAMPLES);
+        updateOverview(ns, totalPnl, invested, cash);
         saveHistory(ns, HISTORY_FILE, history);
 
         await ns.sleep(SLEEP_TIME);
@@ -233,6 +234,18 @@ function openBestShorts(ns, symbols, data, cash, commission, maxForecast, keepCa
     }
 }
 
+// short (buyShort/sellShort) requiert BitNode-8 ou SF8 niveau 2 : présentes sur
+// ns.stock même sans le prérequis, donc typeof ne suffit pas, il faut vérifier le SF.
+function hasShortAccess(ns) {
+    if (ns.getResetInfo().currentNode === 8) return true;
+    try {
+        const sf8 = ns.singularity.getOwnedSourceFiles().find(s => s.n === 8);
+        return (sf8?.lvl ?? 0) >= 2;
+    } catch {
+        return false;
+    }
+}
+
 // ─── Persistance de l'historique ──────────────────────────────────────────
 
 function loadHistory(ns, file, symbols) {
@@ -259,6 +272,15 @@ function calcUnrealized(symbols, data) {
         const [longShares, longAvg, shortShares, shortAvg] = data[sym].pos;
         if (longShares > 0) total += (data[sym].bid - longAvg) * longShares;
         if (shortShares > 0) total += (shortAvg - data[sym].ask) * shortShares;
+    }
+    return total;
+}
+
+function calcInvested(symbols, data) {
+    let total = 0;
+    for (const sym of symbols) {
+        const [longShares, longAvg, shortShares, shortAvg] = data[sym].pos;
+        total += longShares * longAvg + shortShares * shortAvg;
     }
     return total;
 }
@@ -303,4 +325,42 @@ function printDashboard(ns, symbols, data, realized, unrealized, loopPnl, minSam
     ns.print(sep);
 
     ns.ui.setTailTitle(`Trade BN8 | Total: ${fmt(ns, total)}`);
+}
+
+function updateOverview(ns, realized, invested, cash) {
+    try {
+        const doc   = eval("document");
+        const hook0 = doc.getElementById("overview-extra-hook-0");
+        const hook1 = doc.getElementById("overview-extra-hook-1");
+        if (!hook0 || !hook1) return;
+        const total = cash + invested;
+        const color = realized >= 0 ? "#4caf50" : "#f44336";
+        hook0.dataset.traderRealized = "Bénéfice";
+        hook0.dataset.traderInvested = "Misé";
+        hook0.dataset.traderTotal    = "$ TOTAL";
+        hook1.dataset.traderRealized = `<strong style="color:${color}">$${ns.format.number(realized, 2)}</strong>`;
+        hook1.dataset.traderInvested = `$${ns.format.number(invested, 2)}`;
+        hook1.dataset.traderTotal    = `$${ns.format.number(total, 2)}`;
+        renderHooks(hook0, hook1);
+    } catch (_) {}
+}
+
+function clearOverview() {
+    try {
+        const doc  = eval("document");
+        const hook0 = doc.getElementById("overview-extra-hook-0");
+        const hook1 = doc.getElementById("overview-extra-hook-1");
+        if (!hook0 || !hook1) return;
+        for (const k of ["traderRealized", "traderInvested", "traderTotal"]) {
+            delete hook0.dataset[k];
+            delete hook1.dataset[k];
+        }
+        renderHooks(hook0, hook1);
+    } catch (_) {}
+}
+
+function renderHooks(hook0, hook1) {
+    const keys = Object.keys(hook0.dataset);
+    hook0.innerHTML = keys.map(k => hook0.dataset[k]).join("<br>");
+    hook1.innerHTML = keys.map(k => hook1.dataset[k] ?? "").join("<br>");
 }
